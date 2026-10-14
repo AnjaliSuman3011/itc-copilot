@@ -585,10 +585,10 @@ function guard(d,pr,b2,usedP,usedB){ // returns {row, corrected:string|null} or 
   return {row:{invoice_no:b.invoice_no,vendor_name:b.supplier_name,vendor_gstin:b.supplier_gstin,doc_type:b.doc_type,taxable_value:b.taxable_value,total_tax:b.total_tax,status:want,b2:b,inBooks:false,_id:undefined,ai:true,aiReason:d.reason,aiConf:+d.confidence||0,corrected:corr}};}
  return null;}
 async function runAIEngine(){if(!sample||engBusy)return;engBusy=true;const pr=lastPR,b2=lastB2;const G=blocks(pr,b2);
- const batches=[];let cur=[],n=0;G.forEach(g=>{const s=g.p.length+g.b.length;if(n+s>110&&cur.length){batches.push(cur);cur=[];n=0;}cur.push(g);n+=s;});if(cur.length)batches.push(cur);
+ const batches=[];let cur=[],n=0;G.forEach(g=>{const s=g.p.length+g.b.length;if(n+s>40&&cur.length){batches.push(cur);cur=[];n=0;}cur.push(g);n+=s;});if(cur.length)batches.push(cur);
  const st=document.getElementById('engstat');let done=0;const decisions=[];const prompts=[];let failed=0;
  st.textContent=`AI engine running: 0 / ${batches.length} batches (${pr.length+b2.length} rows)…`;renderEngAct();
- const work=batches.map((bt,k)=>async()=>{const pmt=enginePrompt(bt);try{const arr=await sample.json(pmt,{modelTier:'quick'});if(Array.isArray(arr))decisions.push(...arr);if(k===0)prompts.push([pmt,arr]);}catch(e){failed++;if(e&&(e.code==='not_granted'||e.code==='sampling_disabled'))throw e;}done++;st.textContent=`AI engine running: ${done} / ${batches.length} batches…`;});
+ const work=batches.map((bt,k)=>async()=>{const pmt=enginePrompt(bt);try{const arr=await sample.json(pmt,{modelTier:'quick'});if(Array.isArray(arr))decisions.push(...arr);if(k===0)prompts.push([pmt,arr]);}catch(e){failed++;engStats.lastErr=(e&&(e.code||'')+' '+(e.message||''))||'unknown';if(e&&(e.code==='not_granted'||e.code==='sampling_disabled'))throw e;}done++;st.textContent=`AI engine running: ${done} / ${batches.length} batches…`;});
  try{for(let i=0;i<work.length;i+=2)await Promise.all(work.slice(i,i+2).map(w=>w()));}catch(e){engBusy=false;st.textContent='AI engine unavailable. Fallback engine is running.';sample=null;renderEngAct();return;}
  const usedP=new Set(),usedB=new Set();const out=[];let corrected=0,rejected=0;
  // pairs first, then singles
@@ -599,13 +599,13 @@ async function runAIEngine(){if(!sample||engBusy)return;engBusy=true;const pr=la
  b2.forEach((b,j)=>{if(usedB.has(j))return;out.push({invoice_no:b.invoice_no,vendor_name:b.supplier_name,vendor_gstin:b.supplier_gstin,doc_type:b.doc_type,taxable_value:b.taxable_value,total_tax:b.total_tax,status:b.doc_type==='Credit Note'?'Credit note not booked':'Missing in books',b2:b,inBooks:false,fallback:true});fb++;});
  Object.assign(engStats,{batches:batches.length,decisions:decisions.length,accepted:out.length-fb,corrected,rejected,fallback:fb,failed,prompt:prompts[0]});
  engineMode='ai';engBusy=false;applyRes(out);
- addLog('AI engine',`AI reconciled ${pr.length+b2.length} rows in ${batches.length} batch(es): ${out.length-fb} AI decisions kept, ${corrected} corrected by guardrails, ${rejected} rejected, ${fb} rows handled by fallback${failed?`, ${failed} batch(es) failed`:''}`);}
+ addLog('AI engine',`AI reconciled ${pr.length+b2.length} rows in ${batches.length} batch(es): ${out.length-fb} AI decisions kept, ${corrected} corrected by guardrails, ${rejected} rejected, ${fb} rows handled by fallback${failed?`, ${failed} batch(es) failed (${engStats.lastErr||'unknown error'})`:''}`);}
 function renderEngAct(){const a=document.getElementById('engact');if(!a)return;const st=document.getElementById('engstat');
  if(engBusy){a.innerHTML='';return;}
  if(!sample){st.textContent='Fallback engine (AI engine unavailable right now)';a.innerHTML='';return;}
  if(engineMode==='ai'){st.textContent=`AI engine · ${engStats.accepted} bills decided by AI · ${engStats.corrected} guardrail correction${engStats.corrected===1?'':'s'}${engStats.fallback?` · ${engStats.fallback} handled by fallback`:''}`;
   a.innerHTML=engStats.prompt?'<details class="raw"><summary>Show the AI engine\'s prompt &amp; response (first batch)</summary><pre>'+esc(engStats.prompt[0])+'\n\n--- RESPONSE ---\n'+esc(JSON.stringify(engStats.prompt[1]).slice(0,6000))+'</pre></details>':'';return;}
- st.textContent='Baseline engine';a.innerHTML=`<button class="btn rec" id="engai">Run AI engine (AI)</button><span class="meta">${Object.keys(engStats).length?'':'AI decides every bill; guardrails check each decision. ~'+Math.max(1,Math.ceil((lastPR.length+lastB2.length)/110))+' call(s).'}</span>`;
+ st.textContent='Baseline engine';a.innerHTML=`<button class="btn rec" id="engai">Run AI engine (AI)</button><span class="meta">${Object.keys(engStats).length?'':'AI decides every bill; guardrails check each decision. ~'+Math.max(1,Math.ceil((lastPR.length+lastB2.length)/40))+' call(s).'}</span>`;
  document.getElementById('engai').onclick=()=>{if(engStats.decisions&&engStats.out){engineMode='ai';applyRes(engStats.out);}else runAIEngine();};}
 
 // ===== Live AI layer (AI via the viewer's account) =====
