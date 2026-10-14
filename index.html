@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>ITC Copilot</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: operator console — summary strip, then queue + evidence panel side by side; tabs for follow-ups, self-check, audit */
+:root{
+  --bg:#f6f7f8; --surface:#ffffff; --ink:#15212b; --muted:#5b6873; --line:#dde2e6;
+  --accent:#0f6b5c; --accent-soft:#e3f1ee; --warn:#a15c00; --warn-soft:#fbf0de;
+  --crit:#b3261e; --crit-soft:#fbe7e5; --ok:#2f6f3e; --ok-soft:#e5f2e8; --info:#355c9a; --info-soft:#e7eef9;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1519;--surface:#161e24;--ink:#e6ecef;--muted:#9aa7b0;--line:#26323a;--accent:#4fb8a5;--accent-soft:#163430;--warn:#e0a24a;--warn-soft:#33270f;--crit:#f08a82;--crit-soft:#3a1c1a;--ok:#7cc48c;--ok-soft:#18301e;--info:#8fb2ee;--info-soft:#1a2740;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1519;--surface:#161e24;--ink:#e6ecef;--muted:#9aa7b0;--line:#26323a;--accent:#4fb8a5;--accent-soft:#163430;--warn:#e0a24a;--warn-soft:#33270f;--crit:#f08a82;--crit-soft:#3a1c1a;--ok:#7cc48c;--ok-soft:#18301e;--info:#8fb2ee;--info-soft:#1a2740;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+h1{font-size:22px;margin:0;letter-spacing:-.01em} h1 span{color:var(--accent)}
+.sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+.dates{display:flex;gap:8px;flex-wrap:wrap}
+.date{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--muted)}
+.date b{display:block;color:var(--ink);font-size:13px}
+.date.hot{border-color:var(--warn);background:var(--warn-soft)} .date.hot b{color:var(--warn)}
+.note{font-size:12px;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:6px;padding:8px 12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.tile .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.tile .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.tile .d{font-size:12px;color:var(--muted)}
+.tile.crit .v{color:var(--crit)} .tile.warn .v{color:var(--warn)} .tile.ok .v{color:var(--ok)} .tile.acc .v{color:var(--accent)}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--accent)}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{font:inherit;font-weight:500;background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--muted);cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+button:focus-visible,.row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:0}
+.card h2{font-size:14px;margin:0;padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.card h2 small{font-weight:400;color:var(--muted);font-size:12px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.row{cursor:pointer} tr.row:hover td{background:var(--accent-soft)} tr.row.sel td{background:var(--accent-soft)}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.mono{font-family:var(--mono);font-size:12px}
+.chip{display:inline-block;font-size:11.5px;font-weight:500;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.c-crit{background:var(--crit-soft);color:var(--crit)} .c-warn{background:var(--warn-soft);color:var(--warn)} .c-ok{background:var(--ok-soft);color:var(--ok)} .c-info{background:var(--info-soft);color:var(--info)}
+.vend small{display:block;color:var(--muted);font-size:11.5px}
+.panel{padding:14px;display:flex;flex-direction:column;gap:14px}
+.panel h3{font-size:16px;margin:0}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 4px}
+.explain{background:var(--accent-soft);border-radius:6px;padding:10px 12px}
+.explain p{margin:0}
+.ai{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;display:flex;justify-content:space-between}
+.ev{display:grid;grid-template-columns:auto 1fr 1fr;gap:0;font-size:12.5px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.ev div{padding:6px 8px;border-bottom:1px solid var(--line)} .ev .h{font-weight:600;background:var(--bg)} .ev .f{color:var(--muted)}
+.ev .diff{background:var(--warn-soft);color:var(--warn);font-weight:600}
+.rule{font-size:12.5px;color:var(--muted);border-left:3px solid var(--line);padding-left:10px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:inherit;font-size:13px;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:7px 12px;cursor:pointer}
+.btn.rec{border-color:var(--accent);background:var(--accent);color:var(--surface)}
+.btn:hover{border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.done{font-size:12.5px;color:var(--ok);font-weight:500}
+.empty{color:var(--muted);padding:24px 14px;text-align:center}
+.mail{display:flex;flex-direction:column;gap:10px;padding:14px;border-bottom:1px solid var(--line)}
+.mail:last-child{border-bottom:0}
+.mail pre{white-space:pre-wrap;font-family:var(--sans);font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.pad{padding:14px;display:flex;flex-direction:column;gap:10px}
+.big{font-size:28px;font-weight:600;color:var(--ok);font-variant-numeric:tabular-nums}
+ul.clean{margin:0;padding-left:18px} ul.clean li{margin:2px 0}
+.aibar{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.aibar .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.aibar.on .dot{background:var(--ok)} .aibar.on{color:var(--ok)}
+.aimatch{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px;background:var(--info-soft)}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12.5px}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.flow div{border:1px solid var(--line);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:4px;font-size:12.5px}
+.flow span{color:var(--muted)}
+pre.code{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;margin:0;overflow-x:auto;white-space:pre}
+details.raw summary{cursor:pointer;font-size:12px;color:var(--accent)} details.raw pre{white-space:pre-wrap;font-family:var(--mono);font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;max-height:260px;overflow:auto}
+.enginebar .pad{gap:8px}
+.kpi{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:13px}.kpi b{font-variant-numeric:tabular-nums;text-align:right}
+.override{font-size:12.5px;background:var(--warn-soft);color:var(--warn);border-radius:6px;padding:6px 10px}
+footer{font-size:12px;color:var(--muted)}
+.up{display:flex;flex-wrap:wrap;gap:8px}.up label{display:inline-flex;align-items:center}
+.err{font-size:12.5px;color:var(--crit);background:var(--crit-soft);border-radius:6px;padding:8px 10px}
+.databar .pad{gap:10px}
+@media (prefers-reduced-motion:no-preference){tr.row td{transition:background .12s}}
+</style>
+
+</head><body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>ITC <span>Copilot</span></h1>
+    <p class="sub">Concept add-on for Masters India's GST reconciliation · <span id="dsname">Pune AutoComponents Pvt Ltd · Sep 2026 (sample data)</span></p>
+  </div>
+  <div class="dates">
+    <button class="btn" id="theme" type="button">Dark mode</button>
+    <div class="date">Today<b>Sun 11 Oct</b></div>
+    <div class="date hot">GSTR-2B cut-off<b>14 Oct · 3 days</b></div>
+    <div class="date">GSTR-3B due<b>20 Oct</b></div>
+  </div>
+</header>
+
+<div class="aibar" id="aibar"><span class="dot"></span><span id="aistat">Checking live AI…</span></div>
+
+
+<section class="card databar">
+  <div class="pad">
+    <div class="meta"><b style="color:var(--ink)">Data</b><span id="src">Using built-in sample: Pune AutoComponents, Sep 2026</span></div>
+    <div class="up">
+      <label class="btn" for="f-pr">Upload purchase register (CSV)</label><input type="file" id="f-pr" accept=".csv,text/csv" hidden>
+      <label class="btn" for="f-2b">Upload GSTR-2B B2B sheet (CSV)</label><input type="file" id="f-2b" accept=".csv,text/csv" hidden>
+      <label class="btn" for="f-key">Answer key (optional)</label><input type="file" id="f-key" accept=".csv,text/csv" hidden>
+      <button class="btn rec" id="run">Run reconciliation</button>
+      <button class="btn" id="reset">Reset to sample</button>
+    </div>
+    <div class="meta" id="files"></div>
+    <div id="uperr" class="err" hidden></div>
+    <details><summary class="meta" style="cursor:pointer">Which columns are needed?</summary>
+      <p class="rule" style="margin-top:8px">Both files need: supplier GSTIN, invoice number, invoice date, taxable value, and IGST / CGST / SGST. Portal names work too ("GSTIN of supplier", "Invoice number", "Taxable Value", "Integrated Tax", "Central Tax", "State/UT Tax"). Optional: supplier name, document type (Invoice / Credit Note). Save the GSTR-2B B2B sheet from the portal Excel as CSV. To test accuracy, add an answer key with columns _id, expected, pair_group (see the test pack).</p>
+    </details>
+  </div>
+</section>
+
+<section class="tiles" id="tiles"></section>
+<section class="card enginebar"><div class="pad"><div class="meta"><b style="color:var(--ink)">Reconciliation engine</b><span id="engstat">Starting…</span></div><div class="actions" id="engact"></div></div></section>
+
+<nav role="tablist">
+  <button role="tab" id="t-queue" aria-selected="true">Work queue</button>
+  <button role="tab" id="t-check" aria-selected="false">Accuracy &amp; evals</button>
+  <button role="tab" id="t-vendors" aria-selected="false">Vendor follow-ups</button>
+  <button role="tab" id="t-dash" aria-selected="false">Dashboard &amp; OKRs</button>
+  <button role="tab" id="t-log" aria-selected="false">Audit log</button>
+</nav>
+
+<section id="v-queue" class="grid">
+  <div class="card">
+    <h2>Issues to clear before 14 Oct <small id="qcount"></small></h2>
+    <div id="aimatch" class="aimatch" hidden></div>
+    <div class="scroll"><table><thead><tr><th>#</th><th>Vendor</th><th>Issue</th><th class="num">₹ impact</th><th>Next step</th></tr></thead><tbody id="qbody"></tbody></table></div>
+  </div>
+  <div class="card" id="detail"><div class="empty">Select an issue to see the explanation and evidence.</div></div>
+</section>
+
+<section id="v-vendors" hidden>
+  <div class="card"><h2>One message per vendor, covering all their open bills <small>Nothing is sent without approval</small></h2><div id="mails"></div></div>
+</section>
+
+<section id="v-check" hidden>
+  <div id="cmp"></div>
+  <div class="card" id="aieval" style="margin-bottom:16px"><h2>AI quality eval (LLM-as-judge) <small>one AI call writes, a second AI call grades</small></h2><div class="pad" id="aievalbody"></div></div>
+  <div class="two">
+    <div class="card"><h2>Matching accuracy vs answer key</h2><div class="pad" id="acc"></div></div>
+    <div class="card"><h2>Explanation checks <small>automatic, per explanation</small></h2><div class="pad" id="expl"></div></div>
+    <div class="card"><h2>Baseline engine on messy data <small>offline test, 1,040 synthetic bills</small></h2><div class="pad">
+      <div class="scroll"><table><thead><tr><th>Engine</th><th class="num">Held-out accuracy</th></tr></thead><tbody>
+        <tr><td>v1 (exact + basic fuzzy match)</td><td class="num">88.6%</td></tr>
+        <tr><td><b>v2 (current)</b></td><td class="num"><b>96.7%</b></td></tr></tbody></table></div>
+      <p style="margin:0">Noise included: invoice numbers in 7 formats, paise rounding, duplicates typed differently, GSTIN typos, the same invoice number used by two vendors, and a new financial-year format v2 had never seen.</p>
+      <p class="lbl" style="margin-top:4px">What v1 got wrong, and the v2 fix</p>
+      <ul class="clean"><li>Paise rounding flagged as value mismatch → tolerance of ₹2 or 0.1%</li><li>Same invoice number, other vendor, matched wrongly → GSTIN fallback only after same-vendor matching, max 2 characters different</li><li>Duplicates typed differently missed → detect on normalised number</li><li>"0012" vs "12" not matched → strip leading zeros</li></ul>
+      <p class="rule">All 34 remaining misses are safe misses: flagged for review, never wrongly marked "credit safe". Most are a financial-year format ("26-27" vs "2026-27"): exactly the long tail the AI engine is there to handle, with guardrails checking every call.</p>
+    </div></div>
+  </div>
+</section>
+
+<section id="v-dash" hidden>
+  <div class="two">
+    <div class="card"><h2>OKRs for the pilot (first 2 quarters)</h2><div class="pad">
+      <p class="lbl">Objective 1 · Customers claim the credit they are owed</p>
+      <ul class="clean"><li>KR1: Credit confirmed in 2B before 3B filing rises from baseline to 95%</li><li>KR2: 80% of issues cleared before the 14th</li><li>KR3: Zero DRC-01C notices for pilot customers</li></ul>
+      <p class="lbl">Objective 2 · The AI is trusted</p>
+      <ul class="clean"><li>KR1: AI decisions match tax-manager labels ≥ 98% in the shadow run</li><li>KR2: 90% of AI explanations accepted without edits</li><li>KR3: Zero guardrail misses (an AI "safe" call that was wrong)</li></ul>
+      <p class="lbl">Objective 3 · It pays for Masters India</p>
+      <ul class="clean"><li>KR1: Reconciliation time per GSTIN down 50%</li><li>KR2: "Why is this mismatched?" support tickets down 40%</li><li>KR3: 3 of 5 pilot customers convert to the paid add-on</li></ul>
+    </div></div>
+    <div class="card"><h2>This month, live from the current run</h2><div class="pad" id="dashlive"></div></div>
+  </div>
+  <div class="card" id="cfo" style="margin-top:16px"><h2>AI risk brief for the CFO <small>AI reads every open issue</small></h2><div class="pad" id="cfobody"></div></div>
+</section>
+<section id="v-log" hidden>
+  <div class="card"><h2>Audit log <small>every recommendation and human decision</small></h2><div class="scroll"><table><thead><tr><th>Time</th><th>Item</th><th>Event</th></tr></thead><tbody id="logbody"></tbody></table></div></div>
+</section>
+
+<footer>AI decides · guardrails check · humans approve.<br>Concept by Anjali Suman for the Masters India APM assignment. Not affiliated with Masters India. All vendors, GSTINs and amounts are fictional.</footer>
+</div>
+
+<script>
+// AI adapter: inside the AI viewer use AI; anywhere else call our server function (/api/ai).
+(function(){if(window.claude)return;
+async function call(prompt,json){const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,json})});
+ if(!r.ok){const e=await r.json().catch(()=>({}));throw {code:e.code||'upstream_error',message:e.error||'AI error'};}return (await r.json()).text;}
+function parse(t){try{return JSON.parse(t)}catch(_){const m=t.match(/```(?:json)?\s*([\s\S]*?)```/);if(m){try{return JSON.parse(m[1])}catch(__){}}
+ const i=[t.indexOf('{'),t.indexOf('[')].filter(x=>x>=0);const a=i.length?Math.min(...i):-1,b=Math.max(t.lastIndexOf('}'),t.lastIndexOf(']'));
+ if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1))}catch(__){}}throw {code:'invalid_json',text:t};}}
+const sample=async(p,o={})=>{const t=await call(typeof p==='string'?p:p.map(x=>x.content).join('\n\n'),false);if(o.onText)o.onText({text:t,delta:t});return {text:t,truncated:false};};
+sample.json=async p=>parse(await call(p,true));
+window.claude={use:async n=>{if(n!=='sample')return null;try{const r=await fetch('/api/ai');const j=await r.json();return j.ok?sample:null;}catch(e){return null;}}};})();
+</script>
+<script>
+const DATA={pr:`invoice_no,invoice_date,vendor_name,vendor_gstin,doc_type,taxable_value,igst,cgst,sgst,total_tax,period
+02001/26-27,2026-09-12,Deccan Steel Ltd,27AADCD5678G1Z2,Invoice,145000,0.0,13050.0,13050.0,26100.0,Sep-2026
+02002/26-27,2026-09-14,Deccan Steel Ltd,27AADCD5678G1Z2,Invoice,85000,0.0,7650.0,7650.0,15300.0,Sep-2026
+02003/26-27,2026-09-04,Deccan Steel Ltd,27AADCD5678G1Z2,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026
+02004/26-27,2026-09-13,Deccan Steel Ltd,27AADCD5678G1Z2,Invoice,85000,0.0,7650.0,7650.0,15300.0,Sep-2026
+02005/26-27,2026-09-18,Deccan Steel Ltd,27AADCD5678G1Z2,Invoice,210000,0.0,18900.0,18900.0,37800.0,Sep-2026
+03001/26-27,2026-09-03,Bharat Forgings Pvt Ltd,27AAACB4321H1Z9,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026
+03002/26-27,2026-09-15,Bharat Forgings Pvt Ltd,27AAACB4321H1Z9,Invoice,95000,0.0,8550.0,8550.0,17100.0,Sep-2026
+03003/26-27,2026-09-04,Bharat Forgings Pvt Ltd,27AAACB4321H1Z9,Invoice,210000,0.0,18900.0,18900.0,37800.0,Sep-2026
+04001/26-27,2026-09-04,Gujarat Precision Tools,24AAGFG8765J1Z4,Invoice,95000,17100.0,0.0,0.0,17100.0,Sep-2026
+04002/26-27,2026-09-03,Gujarat Precision Tools,24AAGFG8765J1Z4,Invoice,120000,21600.0,0.0,0.0,21600.0,Sep-2026
+04003/26-27,2026-09-09,Gujarat Precision Tools,24AAGFG8765J1Z4,Invoice,85000,15300.0,0.0,0.0,15300.0,Sep-2026
+05001/26-27,2026-09-20,Kaveri Bearings,29AAKCK2468K1Z1,Invoice,95000,17100.0,0.0,0.0,17100.0,Sep-2026
+05002/26-27,2026-09-03,Kaveri Bearings,29AAKCK2468K1Z1,Invoice,210000,37800.0,0.0,0.0,37800.0,Sep-2026
+05003/26-27,2026-09-03,Kaveri Bearings,29AAKCK2468K1Z1,Invoice,145000,26100.0,0.0,0.0,26100.0,Sep-2026
+07001/26-27,2026-09-11,Om Electricals,27AAOFO9753M1Z3,Invoice,95000,0.0,8550.0,8550.0,17100.0,Sep-2026
+07002/26-27,2026-09-06,Om Electricals,27AAOFO9753M1Z3,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026
+08001/26-27,2026-09-20,Rathi Rubber Products,33AARCR1122N1Z8,Invoice,260000,46800.0,0.0,0.0,46800.0,Sep-2026
+08002/26-27,2026-09-19,Rathi Rubber Products,33AARCR1122N1Z8,Invoice,145000,26100.0,0.0,0.0,26100.0,Sep-2026
+08003/26-27,2026-09-05,Rathi Rubber Products,33AARCR1122N1Z8,Invoice,210000,37800.0,0.0,0.0,37800.0,Sep-2026
+09001/26-27,2026-09-13,Metro Lubricants,27AAMFM3344P1Z5,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026
+10001/26-27,2026-09-19,Apex Tooling,27AAEFA5566Q1Z7,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026
+12001/26-27,2026-09-20,Indus Alloys,06AAICI9900S1Z2,Invoice,85000,15300.0,0.0,0.0,15300.0,Sep-2026
+12002/26-27,2026-09-21,Indus Alloys,06AAICI9900S1Z2,Invoice,210000,37800.0,0.0,0.0,37800.0,Sep-2026
+SC/231,2026-09-05,Shree Castings,27ABCPS1234F1ZK,Invoice,240000,0.0,21600.0,21600.0,43200.0,Sep-2026
+SC/232,2026-09-12,Shree Castings,27ABCPS1234F1ZK,Invoice,180000,0.0,16200.0,16200.0,32400.0,Sep-2026
+SC/233,2026-09-19,Shree Castings,27ABCPS1234F1ZK,Invoice,310000,0.0,27900.0,27900.0,55800.0,Sep-2026
+SP-88,2026-09-08,Sai Packaging,27BCDPS1357L1Z6,Invoice,62000,0.0,5580.0,5580.0,11160.0,Sep-2026
+SP-89,2026-09-22,Sai Packaging,27BCDPS1357L1Z6,Invoice,48000,0.0,4320.0,4320.0,8640.0,Sep-2026
+GPT/1045,2026-09-10,Gujarat Precision Tools,24AAGFG8765J1Z4,Invoice,150000,27000.0,0.0,0.0,27000.0,Sep-2026
+GPT/1052,2026-09-17,Gujarat Precision Tools,24AAGFG8765J1Z4,Invoice,98000,17640.0,0.0,0.0,17640.0,Sep-2026
+SP-0090,2026-09-25,Sai Packaging,27BCDPS1357L1Z6,Invoice,55000,0.0,4950.0,4950.0,9900.0,Sep-2026
+BF/7781,2026-09-14,Bharat Forgings Pvt Ltd,27AAACB4321H1Z9,Invoice,400000,0.0,36000.0,36000.0,72000.0,Sep-2026
+OE/553,2026-09-09,Om Electricals,27AAOFO9753M1Z3,Invoice,130000,0.0,11700.0,11700.0,23400.0,Sep-2026
+ML/2209,2026-09-21,Metro Lubricants,27AAMFM3344P1Z6,Invoice,72000,0.0,6480.0,6480.0,12960.0,Sep-2026
+AT/0412,2026-09-11,Apex Tooling,27AAEFA5566Q1Z7,Invoice,115000,0.0,10350.0,10350.0,20700.0,Sep-2026
+AT/0412,2026-09-11,Apex Tooling,27AAEFA5566Q1Z7,Invoice,115000,0.0,10350.0,10350.0,20700.0,Sep-2026`,b2:`supplier_gstin,supplier_name,invoice_no,invoice_date,doc_type,taxable_value,igst,cgst,sgst,total_tax,return_period,supplier_filing
+27AADCD5678G1Z2,Deccan Steel Ltd,02001/26-27,2026-09-12,Invoice,145000,0.0,13050.0,13050.0,26100.0,Sep-2026,Monthly
+27AADCD5678G1Z2,Deccan Steel Ltd,02002/26-27,2026-09-14,Invoice,85000,0.0,7650.0,7650.0,15300.0,Sep-2026,Monthly
+27AADCD5678G1Z2,Deccan Steel Ltd,02003/26-27,2026-09-04,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026,Monthly
+27AADCD5678G1Z2,Deccan Steel Ltd,02004/26-27,2026-09-13,Invoice,85000,0.0,7650.0,7650.0,15300.0,Sep-2026,Monthly
+27AADCD5678G1Z2,Deccan Steel Ltd,02005/26-27,2026-09-18,Invoice,210000,0.0,18900.0,18900.0,37800.0,Sep-2026,Monthly
+27AAACB4321H1Z9,Bharat Forgings Pvt Ltd,03001/26-27,2026-09-03,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026,Monthly
+27AAACB4321H1Z9,Bharat Forgings Pvt Ltd,03002/26-27,2026-09-15,Invoice,95000,0.0,8550.0,8550.0,17100.0,Sep-2026,Monthly
+27AAACB4321H1Z9,Bharat Forgings Pvt Ltd,03003/26-27,2026-09-04,Invoice,210000,0.0,18900.0,18900.0,37800.0,Sep-2026,Monthly
+24AAGFG8765J1Z4,Gujarat Precision Tools,04001/26-27,2026-09-04,Invoice,95000,17100.0,0.0,0.0,17100.0,Sep-2026,Monthly
+24AAGFG8765J1Z4,Gujarat Precision Tools,04002/26-27,2026-09-03,Invoice,120000,21600.0,0.0,0.0,21600.0,Sep-2026,Monthly
+24AAGFG8765J1Z4,Gujarat Precision Tools,04003/26-27,2026-09-09,Invoice,85000,15300.0,0.0,0.0,15300.0,Sep-2026,Monthly
+29AAKCK2468K1Z1,Kaveri Bearings,05001/26-27,2026-09-20,Invoice,95000,17100.0,0.0,0.0,17100.0,Sep-2026,Monthly
+29AAKCK2468K1Z1,Kaveri Bearings,05002/26-27,2026-09-03,Invoice,210000,37800.0,0.0,0.0,37800.0,Sep-2026,Monthly
+29AAKCK2468K1Z1,Kaveri Bearings,05003/26-27,2026-09-03,Invoice,145000,26100.0,0.0,0.0,26100.0,Sep-2026,Monthly
+27AAOFO9753M1Z3,Om Electricals,07001/26-27,2026-09-11,Invoice,95000,0.0,8550.0,8550.0,17100.0,Sep-2026,Monthly
+27AAOFO9753M1Z3,Om Electricals,07002/26-27,2026-09-06,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026,Monthly
+33AARCR1122N1Z8,Rathi Rubber Products,08001/26-27,2026-09-20,Invoice,260000,46800.0,0.0,0.0,46800.0,Sep-2026,Monthly
+33AARCR1122N1Z8,Rathi Rubber Products,08002/26-27,2026-09-19,Invoice,145000,26100.0,0.0,0.0,26100.0,Sep-2026,Monthly
+33AARCR1122N1Z8,Rathi Rubber Products,08003/26-27,2026-09-05,Invoice,210000,37800.0,0.0,0.0,37800.0,Sep-2026,Monthly
+27AAMFM3344P1Z5,Metro Lubricants,09001/26-27,2026-09-13,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026,Monthly
+27AAEFA5566Q1Z7,Apex Tooling,10001/26-27,2026-09-19,Invoice,120000,0.0,10800.0,10800.0,21600.0,Sep-2026,Monthly
+06AAICI9900S1Z2,Indus Alloys,12001/26-27,2026-09-20,Invoice,85000,15300.0,0.0,0.0,15300.0,Sep-2026,Monthly
+06AAICI9900S1Z2,Indus Alloys,12002/26-27,2026-09-21,Invoice,210000,37800.0,0.0,0.0,37800.0,Sep-2026,Monthly
+24AAGFG8765J1Z4,Gujarat Precision Tools,GPT-1045,2026-09-10,Invoice,150000,27000.0,0.0,0.0,27000.0,Sep-2026,Monthly
+24AAGFG8765J1Z4,Gujarat Precision Tools,GPT1052,2026-09-17,Invoice,98000,17640.0,0.0,0.0,17640.0,Sep-2026,Monthly
+27BCDPS1357L1Z6,Sai Packaging,SP-90,2026-09-25,Invoice,55000,0.0,4950.0,4950.0,9900.0,Sep-2026,IFF/Quarterly
+27AAACB4321H1Z9,Bharat Forgings Pvt Ltd,BF/7781,2026-09-14,Invoice,440000,0.0,39600.0,39600.0,79200.0,Sep-2026,Monthly
+27AAOFO9753M1Z3,Om Electricals,OE/553,2026-09-09,Invoice,130000,23400.0,0.0,0.0,23400.0,Sep-2026,Monthly
+27AAMFM3344P1Z5,Metro Lubricants,ML/2209,2026-09-21,Invoice,72000,0.0,6480.0,6480.0,12960.0,Sep-2026,Monthly
+27AAEFA5566Q1Z7,Apex Tooling,AT/0412,2026-09-11,Invoice,115000,0.0,10350.0,10350.0,20700.0,Sep-2026,Monthly
+27AANFN7788R1Z0,Nashik Machining Works,NMW/319,2026-09-06,Invoice,205000,0.0,18450.0,18450.0,36900.0,Sep-2026,Monthly
+27AANFN7788R1Z0,Nashik Machining Works,NMW/327,2026-09-23,Invoice,88000,0.0,7920.0,7920.0,15840.0,Sep-2026,Monthly
+06AAICI9900S1Z2,Indus Alloys,IA/CN/044,2026-09-26,Credit Note,60000,10800.0,0.0,0.0,10800.0,Sep-2026,Monthly`,vendors:`vendor_id,vendor_name,gstin,filing_frequency,e_invoicing,email
+V01,Shree Castings,27ABCPS1234F1ZK,QRMP,No,accounts@shreecastings.example
+V02,Deccan Steel Ltd,27AADCD5678G1Z2,Monthly,Yes,ar@deccansteel.example
+V03,Bharat Forgings Pvt Ltd,27AAACB4321H1Z9,Monthly,Yes,finance@bharatforgings.example
+V04,Gujarat Precision Tools,24AAGFG8765J1Z4,Monthly,Yes,billing@gptools.example
+V05,Kaveri Bearings,29AAKCK2468K1Z1,Monthly,Yes,ar@kaveribearings.example
+V06,Sai Packaging,27BCDPS1357L1Z6,QRMP,No,saipackaging@example.com
+V07,Om Electricals,27AAOFO9753M1Z3,Monthly,No,omelectricals@example.com
+V08,Rathi Rubber Products,33AARCR1122N1Z8,Monthly,Yes,accounts@rathirubber.example
+V09,Metro Lubricants,27AAMFM3344P1Z5,Monthly,No,metrolube@example.com
+V10,Apex Tooling,27AAEFA5566Q1Z7,Monthly,No,apextooling@example.com
+V11,Nashik Machining Works,27AANFN7788R1Z0,Monthly,No,nmw.accounts@example.com
+V12,Indus Alloys,06AAICI9900S1Z2,Monthly,Yes,ar@indusalloys.example`,key:`vendor_id,vendor_name,invoice_no,expected_case,why
+V02,Deccan Steel Ltd,02001/26-27,Matched,
+V02,Deccan Steel Ltd,02002/26-27,Matched,
+V02,Deccan Steel Ltd,02003/26-27,Matched,
+V02,Deccan Steel Ltd,02004/26-27,Matched,
+V02,Deccan Steel Ltd,02005/26-27,Matched,
+V03,Bharat Forgings Pvt Ltd,03001/26-27,Matched,
+V03,Bharat Forgings Pvt Ltd,03002/26-27,Matched,
+V03,Bharat Forgings Pvt Ltd,03003/26-27,Matched,
+V04,Gujarat Precision Tools,04001/26-27,Matched,
+V04,Gujarat Precision Tools,04002/26-27,Matched,
+V04,Gujarat Precision Tools,04003/26-27,Matched,
+V05,Kaveri Bearings,05001/26-27,Matched,
+V05,Kaveri Bearings,05002/26-27,Matched,
+V05,Kaveri Bearings,05003/26-27,Matched,
+V07,Om Electricals,07001/26-27,Matched,
+V07,Om Electricals,07002/26-27,Matched,
+V08,Rathi Rubber Products,08001/26-27,Matched,
+V08,Rathi Rubber Products,08002/26-27,Matched,
+V08,Rathi Rubber Products,08003/26-27,Matched,
+V09,Metro Lubricants,09001/26-27,Matched,
+V10,Apex Tooling,10001/26-27,Matched,
+V12,Indus Alloys,12001/26-27,Matched,
+V12,Indus Alloys,12002/26-27,Matched,
+V01,Shree Castings,SC/231,Missing in 2B,Quarterly (QRMP) filer; bill not uploaded via IFF yet
+V01,Shree Castings,SC/232,Missing in 2B,Quarterly (QRMP) filer; bill not uploaded via IFF yet
+V01,Shree Castings,SC/233,Missing in 2B,Quarterly (QRMP) filer; bill not uploaded via IFF yet
+V06,Sai Packaging,SP-88,Missing in 2B,Quarterly (QRMP) filer; bill not uploaded via IFF yet
+V06,Sai Packaging,SP-89,Missing in 2B,Quarterly (QRMP) filer; bill not uploaded via IFF yet
+V04,Gujarat Precision Tools,GPT/1045,Invoice no. format,Same bill; '/' vs '-'
+V04,Gujarat Precision Tools,GPT/1052,Invoice no. format,Same bill; separator dropped
+V06,Sai Packaging,SP-0090,Invoice no. format,Same bill; leading zeros dropped
+V03,Bharat Forgings Pvt Ltd,BF/7781,Value mismatch,Vendor reported ₹4.4L vs ₹4.0L in books (debit note or typo)
+V07,Om Electricals,OE/553,Wrong tax type,Maharashtra vendor reported IGST instead of CGST+SGST
+V09,Metro Lubricants,ML/2209,GSTIN mismatch,Last character of vendor GSTIN mistyped in books
+V10,Apex Tooling,AT/0412,Duplicate in books,Same bill booked twice in purchase register
+V11,Nashik Machining Works,NMW/319,Missing in books,Vendor filed; bill not yet booked (goods receipt pending?)
+V11,Nashik Machining Works,NMW/327,Missing in books,Vendor filed; bill not yet booked
+V12,Indus Alloys,IA/CN/044,Credit note not booked,Vendor issued credit note; ITC must be reduced; can keep Pending one period`};
+// ITC Copilot baseline engine v2 (deterministic fallback + guardrail helpers)
+function parseCSV(t){const [h,...r]=t.trim().split(/\r?\n/);const k=h.split(',');return r.map(l=>{const v=l.split(',');const o={};k.forEach((x,i)=>o[x]=isNaN(v[i])||v[i]===''?v[i]:+v[i]);return o;});}
+// v2 fix 4: also strip leading zeros at the start ("0012/26-27" = "12/26-27")
+const norm=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/(\D)0+(\d)/g,'$1$2').replace(/^0+(?=\d)/,'');
+// v2 fix 1: paise rounding is not a mismatch (tolerance ₹2 or 0.1%)
+const tol=v=>Math.max(2,Math.abs(v)*0.001);
+function edits(a,b){if(a.length!==b.length)return 99;let d=0;for(let i=0;i<a.length;i++)if(a[i]!==b[i])d++;return d;}
+function reconcile(pr,b2){
+  const used=new Set(),out=[],seen=new Map();const tt=r=>r.igst>0?'IGST':'CGST+SGST';
+  const rows=[];
+  // v2 fix 3: duplicates detected on the normalised invoice number
+  for(const p of pr){const k=p.vendor_gstin+'|'+norm(p.invoice_no);if(seen.has(k)){rows.push({p,dup:true});continue;}seen.set(k,1);rows.push({p});}
+  const idx=new Map();b2.forEach((b,j)=>{const k=b.supplier_gstin+'|'+b.invoice_no;if(!idx.has(k))idx.set(k,[]);idx.get(k).push(j);});
+  const nidx=new Map();b2.forEach((b,j)=>{const k=b.supplier_gstin+'|'+norm(b.invoice_no);if(!nidx.has(k))nidx.set(k,[]);nidx.get(k).push(j);});
+  const take=(list)=>{if(!list)return -1;const j=list.find(j=>!used.has(j));if(j===undefined)return -1;used.add(j);return j;};
+  // pass 1 exact, pass 2 normalised  (v2 fix 2: GSTIN fallback only after all same-vendor matches are done)
+  for(const r of rows){if(r.dup)continue;const j=take(idx.get(r.p.vendor_gstin+'|'+r.p.invoice_no));if(j>=0){r.j=j;r.via='exact';}}
+  for(const r of rows){if(r.dup||r.j!==undefined)continue;const j=take(nidx.get(r.p.vendor_gstin+'|'+norm(r.p.invoice_no)));if(j>=0){r.j=j;r.via='fuzzy';}}
+  for(const r of rows){if(r.dup||r.j!==undefined)continue;const p=r.p;
+    const j=b2.findIndex((b,j)=>!used.has(j)&&norm(b.invoice_no)===norm(p.invoice_no)&&Math.abs(b.taxable_value-p.taxable_value)<=tol(p.taxable_value)&&b.supplier_gstin.slice(0,2)===String(p.vendor_gstin).slice(0,2)&&edits(b.supplier_gstin,String(p.vendor_gstin))<=2);
+    if(j>=0){used.add(j);r.j=j;r.via='gstin';}}
+  for(const r of rows){const p=r.p;
+    if(r.dup){out.push({...p,status:'Duplicate in books',b2:null});continue;}
+    if(r.j===undefined){out.push({...p,status:'Missing in 2B',b2:null});continue;}
+    const b=b2[r.j];let status;
+    if(r.via==='gstin')status='GSTIN mismatch';
+    else if(Math.abs(b.taxable_value-p.taxable_value)>tol(p.taxable_value))status='Value mismatch';
+    else if(tt(b)!==tt(p))status='Wrong tax type';
+    else status=r.via==='fuzzy'?'Invoice no. format':'Matched';
+    out.push({...p,status,b2:b});}
+  b2.forEach((b,j)=>{if(!used.has(j))out.push({invoice_no:b.invoice_no,vendor_name:b.supplier_name,vendor_gstin:b.supplier_gstin,doc_type:b.doc_type,taxable_value:b.taxable_value,total_tax:b.total_tax,status:b.doc_type==='Credit Note'?'Credit note not booked':'Missing in books',b2:b,inBooks:false});});
+  return out;
+}
+
+
+// Robust CSV (quotes, commas, ₹) + header mapping to portal / ERP names
+function csvRows(text){const rows=[];let row=[],f='',q=false;text=text.replace(/^\uFEFF/,'');
+ for(let i=0;i<text.length;i++){const c=text[i];
+  if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}
+  else if(c==='"')q=true;else if(c===','){row.push(f);f='';}
+  else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f='';}
+  else f+=c;}
+ if(f!==''||row.length){row.push(f);rows.push(row);}return rows.filter(r=>r.some(x=>x.trim()!==''));}
+const SYN={gstin:['vendorgstin','suppliergstin','gstinofsupplier','gstin','partygstin','gstinuin','gstinofthesupplier'],
+ name:['vendorname','suppliername','tradelegalname','tradename','legalname','partyname','nameofsupplier'],
+ inv:['invoiceno','invoicenumber','billno','billnumber','docno','documentnumber','documentno','noteno','notenumber'],
+ date:['invoicedate','date','billdate','docdate','documentdate','notedate'],
+ id:['id'],type:['doctype','documenttype','type','notetype','invoicetype'],
+ tv:['taxablevalue','taxableamount','taxable','assessablevalue'],
+ igst:['igst','integratedtax','igstamount'],cgst:['cgst','centraltax','cgstamount'],sgst:['sgst','statetax','statuttax','sgstutgst','sgstamount','utgst']};
+const key_=h=>h.toLowerCase().replace(/\(.*?\)/g,'').replace(/[^a-z]/g,'');
+const num=x=>{const n=parseFloat(String(x??'').replace(/[₹,\s]/g,''));return isNaN(n)?0:n;};
+function mapFile(text,label){const rows=csvRows(text);if(rows.length<2)throw new Error(label+': the file is empty or has only a header.');
+ // find header row within first 8 rows (portal sheets have title rows)
+ let hi=rows.slice(0,8).findIndex(r=>r.some(c=>SYN.gstin.includes(key_(c)))&&r.some(c=>SYN.inv.includes(key_(c))));
+ if(hi<0)throw new Error(label+': could not find a header row with a supplier GSTIN column and an invoice number column.');
+ const H=rows[hi].map(key_);const col=k=>H.findIndex(h=>SYN[k].includes(h));
+ const need=['gstin','inv','tv'];const miss=need.filter(k=>col(k)<0);
+ if(col('igst')<0&&col('cgst')<0)miss.push('igst/cgst');
+ if(miss.length)throw new Error(label+': missing column(s) '+miss.join(', ')+'.');
+ const c=Object.fromEntries(Object.keys(SYN).map(k=>[k,col(k)]));
+ return rows.slice(hi+1).filter(r=>(r[c.gstin]||'').trim()&&(r[c.inv]||'').trim()).map(r=>{const ig=c.igst>=0?num(r[c.igst]):0,cg=c.cgst>=0?num(r[c.cgst]):0,sg=c.sgst>=0?num(r[c.sgst]):0;
+  const ty=c.type>=0&&/credit|^c$|cdnr/i.test(r[c.type])?'Credit Note':'Invoice';
+  return {_id:c.id>=0?r[c.id].trim():undefined,gstin:r[c.gstin].trim().toUpperCase(),name:c.name>=0?r[c.name].trim():'',inv:r[c.inv].trim(),date:c.date>=0?r[c.date].trim():'',type:ty,tv:num(r[c.tv]),igst:ig,cgst:cg,sgst:sg,tax:+(ig+cg+sg).toFixed(2)};});}
+const toPR=a=>a.map(x=>({_id:x._id,invoice_no:x.inv,invoice_date:x.date,vendor_name:x.name||x.gstin,vendor_gstin:x.gstin,doc_type:x.type,taxable_value:x.tv,igst:x.igst,cgst:x.cgst,sgst:x.sgst,total_tax:x.tax}));
+const to2B=a=>a.map(x=>({_id:x._id,supplier_gstin:x.gstin,supplier_name:x.name||x.gstin,invoice_no:x.inv,invoice_date:x.date,doc_type:x.type,taxable_value:x.tv,igst:x.igst,cgst:x.cgst,sgst:x.sgst,total_tax:x.tax}));
+const inr=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+const tax=r=>r.total_tax||0;
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const P={
+ 'Missing in 2B':{kind:'risk',chip:'c-crit',ims:'Not in IMS yet',step:'Chase vendor',owner:'vendor',conf:.95,
+   rule:'Sec 16(2)(aa) CGST Act: credit can be claimed only if the invoice appears in your GSTR-2B.',
+   ex:(r,v)=>`${r.vendor_name} has not reported invoice ${r.invoice_no} yet, so ${inr(tax(r))} of credit is not in your GSTR-2B. ${v&&v.filing_frequency==='QRMP'?`They file quarterly (QRMP), so this bill may only show up after the quarter. Ask them to upload it through IFF before 13 Oct so it lands in this month's 2B.`:`Ask them to include it in their GSTR-1 before the cut-off.`} Until then, don't claim it in GSTR-3B.`},
+ 'Value mismatch':{kind:'risk',chip:'c-warn',ims:'Keep Pending',step:'Ask vendor to amend',owner:'vendor',conf:.88,
+   rule:'Claim only what your books support. Claiming more than the invoice value is an over-claim (interest at 18% p.a. if used).',
+   ex:(r)=>`Your books show ${inr(r.taxable_value)} taxable for ${r.invoice_no}, but ${r.vendor_name} reported ${inr(r.b2.taxable_value)}. The difference is ${inr(r.b2.taxable_value-r.taxable_value)} (tax ${inr(r.b2.total_tax-r.total_tax)}). This is usually a typo or a debit note your team hasn't booked. Keep it Pending in IMS and ask the vendor to confirm or amend.`},
+ 'Wrong tax type':{kind:'risk',chip:'c-crit',ims:'Reject with remark',step:'Ask vendor to amend',owner:'vendor',conf:.9,
+   rule:'IGST Act s.8: a supply within Maharashtra attracts CGST + SGST, not IGST. Credit under the wrong head cannot be used as intended.',
+   ex:(r)=>`${r.vendor_name} is in Maharashtra, like you, but reported ${r.invoice_no} with IGST instead of CGST + SGST. The amount is right but it sits in the wrong tax head, so ${inr(tax(r))} of credit is blocked. Reject it in IMS with a remark and ask them to amend through GSTR-1A. Rejecting alone does not reduce their liability.`},
+ 'Invoice no. format':{kind:'resolved',chip:'c-ok',ims:'Accept',step:'Accept in IMS',owner:'you',conf:.93,
+   rule:'Same supplier GSTIN, same date and amount; only the invoice number is written differently.',
+   ex:(r)=>`This is the same bill. Your books say ${r.invoice_no} and the vendor reported ${r.b2.invoice_no}. Supplier, date and amounts all match, so the credit of ${inr(tax(r))} is safe. Accept it in IMS. The Copilot will remember this format for ${r.vendor_name}.`},
+ 'GSTIN mismatch':{kind:'books',chip:'c-info',ims:'Accept',step:'Fix GSTIN in books',owner:'you',conf:.86,
+   rule:'Invoice number, date and amount match; the supplier GSTIN in your books differs by one character.',
+   ex:(r)=>`The vendor reported ${r.invoice_no} under GSTIN ${r.b2.supplier_gstin}, but your books have ${r.vendor_gstin}. Everything else matches, so this looks like a typo in your vendor master. The credit of ${inr(tax(r))} is in your 2B; accept it and correct the GSTIN in the ERP so future bills match.`},
+ 'Duplicate in books':{kind:'over',chip:'c-warn',ims:'No IMS action',step:'Delete duplicate entry',owner:'you',conf:.97,
+   rule:'Each invoice can be claimed once. A duplicate entry would over-state credit in GSTR-3B (DRC-01C risk if 3B credit exceeds 2B).',
+   ex:(r)=>`${r.invoice_no} from ${r.vendor_name} is booked twice in your purchase register. Only one copy is in GSTR-2B. If both are claimed, you over-claim ${inr(tax(r))}. Remove the duplicate entry in the ERP before preparing GSTR-3B.`},
+ 'Missing in books':{kind:'found',chip:'c-info',ims:'Keep Pending',step:'Check goods receipt',owner:'you',conf:.9,
+   rule:'Sec 16(2)(b): credit needs the goods or services to be received. Confirm receipt before accepting.',
+   ex:(r)=>`${r.vendor_name} reported ${r.invoice_no} (${inr(tax(r))} credit) but it isn't in your books. If the goods arrived, book the bill and accept it in IMS to claim the credit. If not, keep it Pending and ask the stores team.`},
+ 'Credit note not booked':{kind:'over',chip:'c-warn',ims:'Keep Pending (1 period)',step:'Book the credit note',owner:'you',conf:.9,
+   rule:'A supplier credit note reduces your credit. IMS allows keeping a credit note Pending for one tax period.',
+   ex:(r)=>`${r.vendor_name} issued credit note ${r.invoice_no} for ${inr(r.taxable_value)}, which reduces your credit by ${inr(tax(r))}. It isn't in your books yet. Book it, or keep it Pending for one period while you confirm with the vendor.`}
+};
+
+let res=[],issues=[],V={},vByName={},isSample=true,sel=null;const sent={};const log=[];
+const now=()=>new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+function run(pr,b2,vendors,smp){
+ isSample=smp;lastPR=pr;lastB2=b2;lastV=vendors;V=Object.fromEntries(vendors.map(v=>[v.gstin,v]));vByName=Object.fromEntries(vendors.map(v=>[v.vendor_name,v]));
+ for(const k in engStats)delete engStats[k];engineMode='rules';base=reconcile(pr,b2);base.forEach(r=>r.rules=true);baseScore=null;
+ for(const k in sent)delete sent[k];log.length=0;
+ log.unshift({t:smp?'09:00':now(),item:'Reconciliation',ev:`Loaded ${pr.length} book entries and ${b2.length} GSTR-2B rows (${smp?'sample data':'uploaded files'}); baseline computed`});
+ applyRes(base);if(sample)runAIEngine();
+}
+let baseScore=null;
+function applyRes(r){res=r;if(engineMode==='ai')engStats.out=r;
+ issues=res.filter(r=>r.status!=='Matched').map((r,i)=>{const p=P[r.status];const v=V[r.vendor_gstin]||vByName[r.vendor_name];
+  let impact=tax(r); if(r.status==='Value mismatch')impact=r.b2.total_tax-r.total_tax; if(p.kind==='resolved'||p.kind==='books')impact=0;
+  const w={risk:1,over:.9,found:.7,books:.3,resolved:.1}[p.kind];const small=v&&v.filing_frequency==='QRMP'?1.15:1;
+  return {...r,ref:r,id:'I'+(i+1),p,v,impact:Math.abs(impact),score:Math.abs(impact)*w*small,decision:null};}).sort((a,b)=>b.score-a.score);
+ sel=issues[0]?issues[0].id:null;
+ aiSugg=null;for(const k in aiCache)delete aiCache[k];const cb=document.getElementById('cfobody');if(cb)delete cb.dataset.done;const eb=document.getElementById('aievalbody');if(eb)delete eb.dataset.done;
+ renderTiles();renderQueue();renderDetail();renderMails();renderLog();renderCheck();renderAIMatch();renderCFO();renderAIEval();renderEngAct();renderDash();
+}
+function renderDash(){const el=document.getElementById('dashlive');if(!el)return;const dedup=res.filter(r=>r.status!=='Duplicate in books'&&r.inBooks!==false);const books=dedup.reduce((a,r)=>a+tax(r),0);
+ const conf=dedup.filter(r=>['Matched','Invoice no. format','GSTIN mismatch'].includes(r.status)).reduce((a,r)=>a+tax(r),0);const vend=new Set(issues.filter(i=>i.p.owner==='vendor').map(i=>i.vendor_name)).size;
+ const aiRows=res.filter(r=>r.ai).length;
+ el.innerHTML=`<div class="kpi"><span>North star: credit confirmed in 2B</span><b>${books?Math.round(conf/books*100):0}% <span class="meta">target 95%</span></b>
+ <span>Issues open / decided by AP</span><b>${issues.filter(i=>!i.decision).length} / ${issues.filter(i=>i.decision).length}</b>
+ <span>Vendors to chase</span><b>${vend}</b><span>Vendor messages approved</span><b>${Object.keys(sent).length}</b>
+ <span>Decisions made by AI engine</span><b>${aiRows} of ${res.length}</b>
+ <span>AI decisions corrected by guardrails</span><b>${engStats.corrected??'–'}</b>
+ <span>Days to 2B cut-off</span><b>3</b></div>
+ <p class="rule">Pilot targets on the left. Live numbers update as you approve actions in the work queue.</p>`;}
+function renderTiles(){
+ const dedup=res.filter(r=>r.status!=='Duplicate in books'&&r.inBooks!==false);
+ const booksITC=dedup.reduce((a,r)=>a+tax(r),0);
+ const confirmed=dedup.filter(r=>['Matched','Invoice no. format','GSTIN mismatch'].includes(r.status)).reduce((a,r)=>a+tax(r),0)+issues.filter(i=>i.status==='Value mismatch').reduce((a,i)=>a+Math.min(i.total_tax,i.b2.total_tax),0);
+ const sum=k=>issues.filter(i=>i.p.kind===k).reduce((a,i)=>a+i.impact,0);
+ const pct=booksITC?Math.round(confirmed/booksITC*100):0;
+ document.getElementById('tiles').innerHTML=`
+<div class="tile acc"><span class="k">Credit confirmed in 2B</span><span class="v">${pct}%</span><span class="d">${inr(confirmed)} of ${inr(booksITC)} in books · target 95%</span><div class="bar"><i style="width:${pct}%"></i></div></div>
+<div class="tile crit"><span class="k">Credit at risk</span><span class="v">${inr(sum('risk'))}</span><span class="d">Can't claim until vendors fix filings</span></div>
+<div class="tile warn"><span class="k">Over-claim exposure</span><span class="v">${inr(sum('over'))}</span><span class="d">Duplicates and unbooked credit notes</span></div>
+<div class="tile ok"><span class="k">Unclaimed credit found</span><span class="v">${inr(sum('found'))}</span><span class="d">In 2B, missing from your books</span></div>`;}
+function addLog(item,ev){log.unshift({t:now(),item,ev});renderLog();}
+function renderLog(){document.getElementById('logbody').innerHTML=log.map(l=>`<tr><td class="mono">${l.t}</td><td>${esc(l.item)}</td><td>${esc(l.ev)}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">No actions yet.</td></tr>';}
+function renderQueue(){
+ document.getElementById('qcount').textContent=`${issues.length} items · ${issues.filter(i=>!i.impact).length} auto-resolved · sorted by ₹ impact and urgency`;
+ document.getElementById('qbody').innerHTML=issues.length?issues.map((i,n)=>`<tr class="row${sel===i.id?' sel':''}" tabindex="0" data-id="${i.id}">
+  <td class="mono">${n+1}</td>
+  <td class="vend">${esc(i.vendor_name)}<small class="mono">${esc(i.invoice_no)}${i.v&&i.v.filing_frequency==='QRMP'?' · quarterly filer':''}</small></td>
+  <td><span class="chip ${i.p.chip}">${i.status}</span></td>
+  <td class="num">${i.impact?inr(i.impact):'<span style="color:var(--ok)">credit safe</span>'}</td>
+  <td>${i.decision?`<span class="done">✓ ${esc(i.decision)}</span>`:i.p.step}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Everything matched. No issues to clear.</td></tr>';
+ document.querySelectorAll('tr.row').forEach(tr=>{const go=()=>{sel=tr.dataset.id;renderQueue();renderDetail();};tr.onclick=go;tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};});}
+function fld(r,b,f,label,fmt=x=>x){const a=r&&r.inBooks!==false?fmt(r[f[0]]):'—',c=b?fmt(b[f[1]]):'—';const d=a!==c&&a!=='—'&&c!=='—';return `<div class="f">${label}</div><div class="${d?'diff':''}">${esc(a)}</div><div class="${d?'diff':''}">${esc(c)}</div>`;}
+function renderDetail(){
+ const el=document.getElementById('detail');const i=issues.find(x=>x.id===sel);
+ if(!i){el.innerHTML='<div class="empty">Select an issue to see the explanation and evidence.</div>';return;}
+ const b=i.b2;const head=t=>t>0?'IGST':'CGST+SGST';
+ let opts=[...new Set([i.p.ims,'Keep Pending','Accept','Reject with remark'])].filter(o=>!/No IMS|Not in IMS/.test(o));if(/No IMS|Not in IMS/.test(i.p.ims))opts=[];
+ el.innerHTML=`<div class="panel">
+  <div><p class="lbl">${esc(i.vendor_name)} · ${esc(i.invoice_no)}</p><h3>${i.status}</h3><p class="meta">${i.ai?`Decided by AI engine (confidence ${Math.round(i.aiConf*100)}%): ${esc(i.aiReason)}`:i.fallback?'Decided by fallback (AI skipped this row)':''}${i.corrected?` · <span style="color:var(--warn)">Guardrail corrected AI: ${esc(i.corrected)}</span>`:''}</p></div>
+  ${aiBlock(i)}
+  <div><p class="lbl">Evidence</p><div class="ev"><div class="h">Field</div><div class="h">Your books</div><div class="h">GSTR-2B</div>
+   ${fld(i,b,['vendor_gstin','supplier_gstin'],'GSTIN')}${fld(i,b,['invoice_no','invoice_no'],'Invoice no.')}
+   ${fld(i,b,['taxable_value','taxable_value'],'Taxable',x=>x==null?'—':inr(x))}${fld(i,b,['igst','igst'],'Tax head',x=>x==null?'—':head(x))}${fld(i,b,['total_tax','total_tax'],'Tax',x=>x==null?'—':inr(x))}
+  </div></div>
+  <p class="rule"><b>GST rule.</b> ${i.p.rule}</p>
+  <div><p class="lbl">Recommended IMS action: ${i.p.ims}</p><div class="actions">${i.decision?`<span class="done">✓ Approved: ${esc(i.decision)}</span> <button class="btn" id="undo">Undo</button>`:
+   opts.map((o,k)=>`<button class="btn ${k===0&&o===i.p.ims?'rec':''}" data-d="${o}">${o}</button>`).join('')+`<button class="btn ${opts.length?'':'rec'}" data-d="${i.p.step}">Mark: ${i.p.step}</button>`}</div></div></div>`;
+ el.querySelectorAll('[data-d]').forEach(bt=>bt.onclick=()=>{i.decision=bt.dataset.d;addLog(`${i.vendor_name} · ${i.invoice_no}`,`Approved by AP executive: ${i.decision}${i.decision===i.p.ims||i.decision===i.p.step?'':' (overrode recommendation)'}`);renderQueue();renderDetail();});
+ const ab=el.querySelector('#aibtn');if(ab)ab.onclick=()=>explainAI(i,ab);
+ const u=el.querySelector('#undo');if(u)u.onclick=()=>{addLog(`${i.vendor_name} · ${i.invoice_no}`,`Undid decision: ${i.decision}`);i.decision=null;renderQueue();renderDetail();};}
+function renderMails(){
+ const by={};issues.filter(i=>i.p.owner==='vendor').forEach(i=>{(by[i.vendor_name]=by[i.vendor_name]||[]).push(i);});
+ const ents=Object.entries(by);
+ document.getElementById('mails').innerHTML=ents.length?ents.map(([name,list],n)=>{const v=list[0].v;const q=v&&v.filing_frequency==='QRMP';
+  const lines=list.map(i=>i.status==='Missing in 2B'?`• ${i.invoice_no}${i.invoice_date?' dated '+i.invoice_date:''}, taxable ${inr(i.taxable_value)}: not yet reported in your GSTR-1`
+   :i.status==='Value mismatch'?`• ${i.invoice_no}: reported taxable value ${inr(i.b2.taxable_value)}, our invoice shows ${inr(i.taxable_value)}. Please confirm or amend`
+   :`• ${i.invoice_no}: reported as IGST, but this is an intra-state supply (CGST + SGST). Please amend through GSTR-1A`).join('\n');
+  const ask=q?`Since you file quarterly, could you upload these through IFF (Invoice Furnishing Facility) by 13 October? That way they reflect in our September GSTR-2B.`:`Could you please correct these in your GSTR-1 / GSTR-1A before the 13th so they reflect in our GSTR-2B?`;
+  const tot=inr(list.reduce((a,i)=>a+i.impact,0));
+  const body=`Subject: GST filing check – ${list.length} invoice${list.length>1?'s':''} pending\n\nHello ${name} team,\n\nWhile reconciling our purchases with GSTR-2B, we found ${list.length===1?'one invoice that needs':list.length+' invoices that need'} your attention:\n\n${lines}\n\n${ask}\n\nTotal credit held up: ${tot}. Happy to share invoice copies if needed.\n\nThanks,\nAccounts Payable${isSample?', Pune AutoComponents Pvt Ltd':''}`;
+  return `<div class="mail"><div class="meta"><b style="color:var(--ink)">${esc(name)}</b><span class="mono">${v&&v.email?esc(v.email):''}</span>${q?'<span class="chip c-warn">Quarterly filer · ask for IFF</span>':v?'<span class="chip c-info">Monthly filer</span>':''}<span>${list.length} open · ${tot}</span></div>
+   <pre id="m-${n}">${esc(body)}</pre>
+   <div class="actions">${sent[name]?`<span class="done">✓ Approved and queued for sending</span>`:`<button class="btn rec" data-ap="${n}">Approve &amp; queue</button>`}${sample?`<button class="btn" data-ai="${n}" data-l="en">Draft with AI · English</button><button class="btn" data-ai="${n}" data-l="hi">Draft with AI · Hindi-English</button>`:''}<button class="btn" data-cp="${n}">Copy text</button><span class="meta" id="cp-${n}"></span></div></div>`;}).join(''):'<div class="empty">No vendor follow-ups needed.</div>';
+ document.querySelectorAll('[data-ai]').forEach(b=>b.onclick=()=>{const [name,list]=ents[+b.dataset.ai];draftAI(b.dataset.ai,name,list,b.dataset.l);});
+ document.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>{const name=ents[+b.dataset.ap][0];sent[name]=1;addLog(name,'Vendor message approved and queued (A/B variant: consolidated email)');renderMails();});
+ document.querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{const n=b.dataset.cp,pre=document.getElementById('m-'+n),s=document.getElementById('cp-'+n);
+  navigator.clipboard.writeText(pre.textContent).then(()=>s.textContent='Copied').catch(()=>{const r=document.createRange();r.selectNodeContents(pre);const sl=getSelection();sl.removeAllRanges();sl.addRange(r);s.textContent='Selected, press Ctrl+C';});});}
+
+function scoreRes(R){ // returns {ok,n} vs answer key (sample: by invoice; upload: by _id)
+ if(isSample){const key=parseCSV(DATA.key);const got={};R.forEach(r=>{if(!got[r.invoice_no]||r.status!=='Matched')got[r.invoice_no]=r.status;});return {ok:key.filter(k=>got[k.invoice_no]===k.expected_case).length,n:key.length};}
+ if(!up.key)return null;const got={};R.forEach(r=>{const id=r.inBooks===false?(r.b2&&r.b2._id):r._id;if(id)got[id]=r.status;});
+ const groups={};up.key.forEach(k=>{if(k.grp)(groups[k.grp]=groups[k.grp]||[]).push(k.id);});const pairOk={};for(const g in groups){const s=new Set(groups[g].map(id=>got[id]));pairOk[g]=s.has('Duplicate in books')&&(s.has('Matched')||s.has('Invoice no. format'));}
+ return {ok:up.key.filter(k=>k.grp?pairOk[k.grp]:got[k.id]===k.exp).length,n:up.key.length};}
+function compareHTML(){if(!base)return '';const b=scoreRes(base);if(!b)return '';const a=engStats.out?scoreRes(engStats.out):null;const pc=x=>(x.ok/x.n*100).toFixed(1)+'%';
+ return `<div class="card" style="margin-bottom:16px"><h2>AI engine vs baseline engine <small>same files, same answer key</small></h2><div class="pad"><div class="kpi"><span>Baseline engine</span><b>${pc(b)}</b><span>AI engine (LLM + guardrails)</span><b>${a?pc(a):'not run yet'}</b>${a?`<span>AI decisions corrected by guardrails</span><b>${engStats.corrected}</b><span>Rows handled by fallback</span><b>${engStats.fallback}</b>`:''}</div></div></div>`;}
+
+function renderCheck(){
+ const cmp=document.getElementById('cmp');if(cmp)cmp.innerHTML=compareHTML();
+ const checks=[['Names the ₹ amount',t=>/₹/.test(t)],['States the next action',t=>/(Ask|Accept|Reject|Keep|Book|Remove|accept|reject|book|remove|keep)/.test(t)],['Names the invoice',(t,i)=>t.includes(i.invoice_no)],['Under 70 words',t=>t.split(/\s+/).length<=70]];
+ document.getElementById('expl').innerHTML=issues.length?`<table><thead><tr><th>Check</th><th class="num">Pass</th></tr></thead><tbody>${checks.map(([n,f])=>`<tr><td>${n}</td><td class="num">${issues.filter(i=>f(i.p.ex(i,i.v),i)).length} / ${issues.length}</td></tr>`).join('')}</tbody></table>
+  <p class="rule">Format checks run automatically on every explanation. Correctness of the cause and tone are reviewed by a tax manager in the pilot; target 90% accepted without edits.</p>`:'<div class="empty">No explanations to check.</div>';
+ const acc=document.getElementById('acc');
+ if(!isSample){
+  if(!up.key){acc.innerHTML='<p class="rule">No answer key uploaded, so accuracy can\'t be measured for these files. Upload one from the test pack (or "Reset to sample") to see a live score.</p>';return;}
+  const got={};res.forEach(r=>{const id=r.inBooks===false?(r.b2&&r.b2._id):r._id;if(id)got[id]=r.status;});
+  const groups={};up.key.forEach(k=>{if(k.grp)(groups[k.grp]=groups[k.grp]||[]).push(k.id);});
+  const pairOk={};for(const g in groups){const s=new Set(groups[g].map(id=>got[id]));pairOk[g]=s.has('Duplicate in books')&&(s.has('Matched')||s.has('Invoice no. format'));}
+  let ok=0,miss=0;const cases={},errs={};up.key.forEach(k=>{if(!(k.id in got)){miss++;}const m=k.grp?pairOk[k.grp]:got[k.id]===k.exp;if(m)ok++;else{const e=k.exp+' → '+(got[k.id]||'not found');errs[e]=(errs[e]||0)+1;}const c=cases[k.exp]=cases[k.exp]||[0,0];c[1]++;if(m)c[0]++;});
+  const n=up.key.length;
+  acc.innerHTML=`<div class="big">${(ok/n*100).toFixed(1)}%</div><p style="margin:0;color:var(--muted)">${ok} of ${n} labelled rows correct on your uploaded files, scored live in this browser.${miss?` ${miss} labels had no matching _id in the files.`:''}</p>
+   <div class="scroll"><table><thead><tr><th>Expected</th><th class="num">Correct</th></tr></thead><tbody>${Object.entries(cases).map(([c,[a,t]])=>`<tr><td>${esc(c)}</td><td class="num">${a} / ${t}</td></tr>`).join('')}</tbody></table></div>
+   ${Object.keys(errs).length?`<p class="lbl">Misses</p><ul class="clean">${Object.entries(errs).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([e,c])=>`<li>${c} × ${esc(e)}</li>`).join('')}</ul>`:''}`;return;}
+ const key=parseCSV(DATA.key);const got={};res.forEach(r=>{if(!got[r.invoice_no]||r.status!=='Matched')got[r.invoice_no]=r.status;});
+ let ok=0;const cases={};key.forEach(k=>{const m=got[k.invoice_no]===k.expected_case;if(m)ok++;const c=cases[k.expected_case]=cases[k.expected_case]||[0,0];c[1]++;if(m)c[0]++;});
+ acc.innerHTML=`<div class="big">${ok} / ${key.length}</div><p style="margin:0;color:var(--muted)">Bills classified correctly against a hand-labelled answer key with 8 planted mismatch types.</p>
+  <div class="scroll"><table><thead><tr><th>Case</th><th class="num">Correct</th></tr></thead><tbody>${Object.entries(cases).map(([c,[a,t]])=>`<tr><td>${c}</td><td class="num">${a} / ${t}</td></tr>`).join('')}</tbody></table></div>
+  <p class="rule">Planted data, so a perfect score is expected. Next: shadow-run on 3 months of a real customer's data and compare against a tax manager's labels.</p>`;}
+
+
+// ===== AI ENGINE (core): AI reconciles, guardrails verify, rules are baseline/fallback =====
+let base=null,engineMode='rules',engBusy=false;let lastPR=[],lastB2=[],lastV=[],lastSample=true;const engStats={};
+const STAT=['Matched','Invoice no. format','Value mismatch','Wrong tax type','GSTIN mismatch','Duplicate in books','Missing in 2B','Missing in books','Credit note not booked'];
+function blocks(pr,b2){const parent={};const f=x=>parent[x]===x?x:(parent[x]=f(parent[x]));const u=(a,b)=>{parent[f(a)]=f(b);};
+ const key=(g,n)=>['g:'+g,'n:'+String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'')];
+ const add=(g,n)=>{const [a,b]=key(g,n);parent[a]=parent[a]||a;if(b!=='n:'){parent[b]=parent[b]||b;u(a,b);}return a;};
+ const P=pr.map((r,i)=>({r,i,k:add(r.vendor_gstin,r.vendor_name)})),B=b2.map((r,j)=>({r,j,k:add(r.supplier_gstin,r.supplier_name)}));
+ const G={};P.forEach(x=>{(G[f(x.k)]=G[f(x.k)]||{p:[],b:[]}).p.push(x);});B.forEach(x=>{(G[f(x.k)]=G[f(x.k)]||{p:[],b:[]}).b.push(x);});return Object.values(G);}
+const head=r=>r.igst>0?'IGST':'CGST+SGST';
+function enginePrompt(batch){const data=batch.map(g=>({books:g.p.map(x=>({id:'p'+x.i,gstin:x.r.vendor_gstin,inv:x.r.invoice_no,date:x.r.invoice_date,taxable:x.r.taxable_value,head:head(x.r),doc:x.r.doc_type})),
+  gstr2b:g.b.map(x=>({id:'b'+x.j,gstin:x.r.supplier_gstin,inv:x.r.invoice_no,date:x.r.invoice_date,taxable:x.r.taxable_value,head:head(x.r),doc:x.r.doc_type}))}));
+ return `You reconcile an Indian company's purchase register ("books") against its GSTR-2B for GST input tax credit. The buyer is in Maharashtra (state code 27). Each block below holds one supplier's rows.
+For EVERY row id, output exactly one decision. Pair a books row with a gstr2b row when they are the same invoice. Statuses (use exactly these strings):
+- "Matched": same invoice, same number, taxable equal within ₹2 or 0.1%, same tax head
+- "Invoice no. format": same invoice but number written differently (separators, case, leading zeros, prefixes, financial year 26-27 vs 2026-27)
+- "Value mismatch": same invoice, taxable differs by more than ₹2 and 0.1%
+- "Wrong tax type": same invoice, tax head differs (IGST vs CGST+SGST)
+- "GSTIN mismatch": same invoice and amount, supplier GSTIN differs by 1-2 characters (typo)
+- "Duplicate in books": a second books row for an invoice already listed (give books_id only)
+- "Missing in 2B": books row with no gstr2b counterpart (books_id only)
+- "Missing in books": gstr2b invoice with no books counterpart (gstr2b_id only)
+- "Credit note not booked": gstr2b credit note with no books counterpart (gstr2b_id only)
+Each id appears in at most one decision. Reason: max 10 words.
+Reply with only a JSON array: [{"books_id": string|null, "gstr2b_id": string|null, "status": string, "reason": string, "confidence": number}]
+BLOCKS:
+${JSON.stringify(data)}`;}
+function guard(d,pr,b2,usedP,usedB){ // returns {row, corrected:string|null} or null (reject)
+ const pi=d.books_id&&/^p\d+$/.test(d.books_id)?+d.books_id.slice(1):null,bj=d.gstr2b_id&&/^b\d+$/.test(d.gstr2b_id)?+d.gstr2b_id.slice(1):null;
+ const p=pi!=null?pr[pi]:null,b=bj!=null?b2[bj]:null;let s=STAT.includes(d.status)?d.status:null;if(!s||(pi!=null&&!p)||(bj!=null&&!b))return null;
+ if((pi!=null&&usedP.has(pi))||(bj!=null&&usedB.has(bj)))return null;let corr=null;
+ if(p&&b){const same=p.vendor_gstin===b.supplier_gstin,valEq=Math.abs(p.taxable_value-b.taxable_value)<=tol(p.taxable_value),headEq=head(p)===head(b);
+  if(!same){if(edits(p.vendor_gstin,b.supplier_gstin)>2||p.vendor_gstin.slice(0,2)!==b.supplier_gstin.slice(0,2)||!valEq)return null;if(s!=='GSTIN mismatch'){corr=`${s} → GSTIN mismatch`;s='GSTIN mismatch';}}
+  else{let want=s;if(!valEq)want='Value mismatch';else if(!headEq)want='Wrong tax type';else if(s==='Value mismatch'||s==='Wrong tax type'||s==='GSTIN mismatch')want=p.invoice_no===b.invoice_no?'Matched':'Invoice no. format';
+   else if(s==='Matched'&&p.invoice_no!==b.invoice_no)want='Invoice no. format';else if(s==='Invoice no. format'&&p.invoice_no===b.invoice_no)want='Matched';
+   if(!['Matched','Invoice no. format','Value mismatch','Wrong tax type'].includes(want))want='Matched';if(want!==s){corr=`${s} → ${want}`;s=want;}}
+  usedP.add(pi);usedB.add(bj);return {row:{...p,status:s,b2:b,ai:true,aiReason:d.reason,aiConf:+d.confidence||0,corrected:corr}};}
+ if(p&&!b){if(!['Missing in 2B','Duplicate in books'].includes(s))return null;usedP.add(pi);return {row:{...p,status:s,b2:null,ai:true,aiReason:d.reason,aiConf:+d.confidence||0}};}
+ if(b&&!p){if(!['Missing in books','Credit note not booked'].includes(s))return null;const want=b.doc_type==='Credit Note'?'Credit note not booked':'Missing in books';if(want!==s)corr=`${s} → ${want}`;usedB.add(bj);
+  return {row:{invoice_no:b.invoice_no,vendor_name:b.supplier_name,vendor_gstin:b.supplier_gstin,doc_type:b.doc_type,taxable_value:b.taxable_value,total_tax:b.total_tax,status:want,b2:b,inBooks:false,_id:undefined,ai:true,aiReason:d.reason,aiConf:+d.confidence||0,corrected:corr}};}
+ return null;}
+async function runAIEngine(){if(!sample||engBusy)return;engBusy=true;const pr=lastPR,b2=lastB2;const G=blocks(pr,b2);
+ const batches=[];let cur=[],n=0;G.forEach(g=>{const s=g.p.length+g.b.length;if(n+s>110&&cur.length){batches.push(cur);cur=[];n=0;}cur.push(g);n+=s;});if(cur.length)batches.push(cur);
+ const st=document.getElementById('engstat');let done=0;const decisions=[];const prompts=[];let failed=0;
+ st.textContent=`AI engine running: 0 / ${batches.length} batches (${pr.length+b2.length} rows)…`;renderEngAct();
+ const work=batches.map((bt,k)=>async()=>{const pmt=enginePrompt(bt);try{const arr=await sample.json(pmt,{modelTier:'quick'});if(Array.isArray(arr))decisions.push(...arr);if(k===0)prompts.push([pmt,arr]);}catch(e){failed++;if(e&&(e.code==='not_granted'||e.code==='sampling_disabled'))throw e;}done++;st.textContent=`AI engine running: ${done} / ${batches.length} batches…`;});
+ try{for(let i=0;i<work.length;i+=2)await Promise.all(work.slice(i,i+2).map(w=>w()));}catch(e){engBusy=false;st.textContent='AI engine unavailable. Fallback engine is running.';sample=null;renderEngAct();return;}
+ const usedP=new Set(),usedB=new Set();const out=[];let corrected=0,rejected=0;
+ // pairs first, then singles
+ decisions.sort((a,b)=>((a.books_id&&a.gstr2b_id)?0:1)-((b.books_id&&b.gstr2b_id)?0:1)).forEach(d=>{const g=guard(d,pr,b2,usedP,usedB);if(!g){rejected++;return;}if(g.row.corrected)corrected++;out.push(g.row);});
+ // fallback: rows the AI skipped or got rejected → rules baseline result
+ let fb=0;const baseRes=reconcile(pr,b2); // v2 returns one row per books entry, in order, then GSTR-2B-only rows
+ pr.forEach((p,i)=>{if(usedP.has(i))return;const r=baseRes[i];let row={...r,fallback:true};if(r.b2){const j=b2.indexOf(r.b2);if(usedB.has(j))row={...p,status:'Missing in 2B',b2:null,fallback:true};else usedB.add(j);}out.push(row);fb++;});
+ b2.forEach((b,j)=>{if(usedB.has(j))return;out.push({invoice_no:b.invoice_no,vendor_name:b.supplier_name,vendor_gstin:b.supplier_gstin,doc_type:b.doc_type,taxable_value:b.taxable_value,total_tax:b.total_tax,status:b.doc_type==='Credit Note'?'Credit note not booked':'Missing in books',b2:b,inBooks:false,fallback:true});fb++;});
+ Object.assign(engStats,{batches:batches.length,decisions:decisions.length,accepted:out.length-fb,corrected,rejected,fallback:fb,failed,prompt:prompts[0]});
+ engineMode='ai';engBusy=false;applyRes(out);
+ addLog('AI engine',`AI reconciled ${pr.length+b2.length} rows in ${batches.length} batch(es): ${out.length-fb} AI decisions kept, ${corrected} corrected by guardrails, ${rejected} rejected, ${fb} rows handled by fallback${failed?`, ${failed} batch(es) failed`:''}`);}
+function renderEngAct(){const a=document.getElementById('engact');if(!a)return;const st=document.getElementById('engstat');
+ if(engBusy){a.innerHTML='';return;}
+ if(!sample){st.textContent='Fallback engine (AI engine unavailable right now)';a.innerHTML='';return;}
+ if(engineMode==='ai'){st.textContent=`AI engine · ${engStats.accepted} bills decided by AI · ${engStats.corrected} guardrail correction${engStats.corrected===1?'':'s'}${engStats.fallback?` · ${engStats.fallback} handled by fallback`:''}`;
+  a.innerHTML=engStats.prompt?'<details class="raw"><summary>Show the AI engine\'s prompt &amp; response (first batch)</summary><pre>'+esc(engStats.prompt[0])+'\n\n--- RESPONSE ---\n'+esc(JSON.stringify(engStats.prompt[1]).slice(0,6000))+'</pre></details>':'';return;}
+ st.textContent='Baseline engine';a.innerHTML=`<button class="btn rec" id="engai">Run AI engine (AI)</button><span class="meta">${Object.keys(engStats).length?'':'AI decides every bill; guardrails check each decision. ~'+Math.max(1,Math.ceil((lastPR.length+lastB2.length)/110))+' call(s).'}</span>`;
+ document.getElementById('engai').onclick=()=>{if(engStats.decisions&&engStats.out){engineMode='ai';applyRes(engStats.out);}else runAIEngine();};}
+
+// ===== Live AI layer (AI via the viewer's account) =====
+let sample=null;const aiCache={};
+const ALLOWED={'Missing in 2B':[],'Value mismatch':['Keep Pending','Reject with remark'],'Wrong tax type':['Reject with remark','Keep Pending'],'Invoice no. format':['Accept'],'GSTIN mismatch':['Accept'],'Duplicate in books':[],'Missing in books':['Keep Pending','Accept'],'Credit note not booked':['Keep Pending','Accept']};
+function setAI(on,msg){const b=document.getElementById('aibar');b.classList.toggle('on',on);document.getElementById('aistat').textContent=msg;}
+if(window.claude&&claude.use){claude.use('sample').then(s=>{sample=s;setAI(!!s,s?'AI engine connected.':'AI engine unavailable right now. A fallback engine is running on the same data.');renderDetail();renderAIMatch();renderMails();renderCFO();renderAIEval();renderEngAct();if(s&&lastPR.length&&engineMode==='rules'&&!engStats.decisions)runAIEngine();}).catch(()=>setAI(false,'AI engine unavailable right now.'));}
+else setAI(false,'AI engine unavailable right now. A fallback engine is running on the same data.');
+function aiPrompt(i){const ev={case:i.status,rule:i.p.rule,allowed_ims_actions:ALLOWED[i.status],vendor:i.vendor_name,vendor_filing:i.v?i.v.filing_frequency:'unknown',
+  books_row:i.inBooks===false?null:{gstin:i.vendor_gstin,invoice_no:i.invoice_no,date:i.invoice_date,taxable:i.taxable_value,igst:i.igst,cgst:i.cgst,sgst:i.sgst,doc_type:i.doc_type},
+  gstr2b_row:i.b2?{gstin:i.b2.supplier_gstin,invoice_no:i.b2.invoice_no,date:i.b2.invoice_date,taxable:i.b2.taxable_value,igst:i.b2.igst,cgst:i.b2.cgst,sgst:i.b2.sgst,doc_type:i.b2.doc_type}:null,
+  key_dates:{gstr2b_cutoff:'14 Oct',gstr3b_due:'20 Oct',iff_deadline:'13 Oct'}};
+ return `You are a GST reconciliation assistant for an Indian accounts-payable executive. The AI engine has already classified this purchase invoice. Explain it so a non-expert can act today.
+Rules: use only the data below; do not invent facts. Choose ims_action ONLY from allowed_ims_actions (use "N/A" if that list is empty). Amounts in rupees with the ₹ sign.
+Reply with only a JSON object: {"cause": string (short), "explanation": string (max 60 words, plain English, name the invoice and the ₹ amount at stake), "ims_action": string, "next_step": string (one action, max 12 words), "confidence": number 0-1}
+DATA:
+${JSON.stringify(ev,null,1)}`;}
+async function explainAI(i,btn){const out=document.getElementById('aiout');btn.disabled=true;out.innerHTML='<p class="meta">Thinking…</p>';
+ const prompt=aiPrompt(i);
+ try{const r=await sample.json(prompt,{modelTier:'quick'});
+  const allowed=ALLOWED[i.status];let act=String(r.ims_action||'N/A');let ov='';
+  if(allowed.length&&!allowed.includes(act)){ov=`Guardrail override: the AI suggested "${act}", which isn't allowed for "${i.status}". Kept "${allowed[0]}".`;act=allowed[0];}
+  if(!allowed.length&&act!=='N/A'){ov=`Guardrail override: no IMS action applies to "${i.status}"; ignored the AI's "${act}".`;act='N/A';}
+  aiCache[i.id]={r,act,ov,prompt};addLog(`${i.vendor_name} · ${i.invoice_no}`,`Live AI explanation generated (confidence ${Math.round((+r.confidence||0)*100)}%)${ov?' · '+ov:''}`);renderDetail();
+ }catch(e){btn.disabled=false;const m={not_granted:'AI access was not allowed for this page.',sampling_disabled:'AI is not available for this account.',rate_limited:'Too many AI calls. Try again in a minute.',invalid_json:'The AI reply could not be read. Try again.'};out.innerHTML=`<p class="override">${esc(m[e&&e.code]||'The AI call failed. Try again.')}</p>`;if(e&&(e.code==='not_granted'||e.code==='sampling_disabled')){sample=null;setAI(false,'AI engine unavailable. A fallback engine is running.');}}}
+function aiBlock(i){const c=aiCache[i.id];
+ if(c)return `<div class="explain"><div class="ai"><span>Live AI explanation</span><span>Confidence ${Math.round((+c.r.confidence||0)*100)}%</span></div><p>${esc(c.r.explanation)}</p><p class="meta" style="margin-top:6px">Cause: ${esc(c.r.cause)} · Next step: ${esc(c.r.next_step)} · IMS: ${esc(c.act)}</p></div>${c.ov?`<p class="override">${esc(c.ov)}</p>`:''}
+  <details class="raw"><summary>Show prompt &amp; response</summary><pre>${esc(c.prompt)}\n\n--- RESPONSE ---\n${esc(JSON.stringify(c.r,null,1))}</pre></details>`;
+ return `<div class="explain"><div class="ai"><span>Copilot explanation</span><span>${i.ai?`AI confidence ${Math.round(i.aiConf*100)}%`:''}</span></div><p>${esc(i.p.ex(i,i.v))}</p></div>
+  ${sample?`<div class="actions"><button class="btn" id="aibtn">Explain in detail with AI</button><span id="aiout"></span></div><details class="raw"><summary>Show the prompt that will be sent</summary><pre>${esc(aiPrompt(i))}</pre></details>`:''}`;}
+
+// ===== More AI jobs rules can't do =====
+const J=(o)=>JSON.stringify(o);
+function issueBrief(i){return {id:i.id,vendor:i.vendor_name,filing:i.v?i.v.filing_frequency:'unknown',case:i.status,invoice:i.invoice_no,books_taxable:i.inBooks===false?null:i.taxable_value,gstr2b_taxable:i.b2?i.b2.taxable_value:null,tax_at_stake:i.impact,allowed_ims_actions:ALLOWED[i.status],rule:i.p.rule};}
+function renderCFO(){const el=document.getElementById('cfo');if(!el)return;if(!sample||!issues.length){document.getElementById('cfobody').innerHTML='<p class="rule">Needs the AI engine (unavailable right now).</p>';return;}
+ const b=document.getElementById('cfobody');if(b.dataset.done)return;b.innerHTML='<div class="actions"><button class="btn rec" id="cfobtn">Write the CFO brief</button><span class="meta" id="cfost"></span></div>';
+ document.getElementById('cfobtn').onclick=async()=>{const st=document.getElementById('cfost');document.getElementById('cfobtn').disabled=true;st.textContent='Thinking…';
+  const data=issues.filter(i=>i.impact).map(i=>({vendor:i.vendor_name,filing:i.v?i.v.filing_frequency:'unknown',case:i.status,tax:i.impact}));
+  const prompt=`You brief the CFO of an Indian manufacturer on GST input tax credit (ITC) at risk before the GSTR-2B cut-off (14 Oct) and GSTR-3B due date (20 Oct). From the open issues below, write exactly 3 bullets (max 25 words each): where the money is concentrated (name vendors and ₹), the main cause, and the one decision the CFO should take this week. Use ₹ with Indian digit grouping. Use only this data.
+Reply with only a JSON array of 3 strings.
+DATA:
+${J(data)}`;
+  try{const arr=await sample.json(prompt,{modelTier:'quick'});b.dataset.done=1;b.innerHTML=`<ul class="clean">${(Array.isArray(arr)?arr:[]).slice(0,3).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><details class="raw"><summary>Show prompt &amp; response</summary><pre>${esc(prompt)}\n\n--- RESPONSE ---\n${esc(J(arr))}</pre></details>`;addLog('CFO brief','Live AI risk brief generated');}
+  catch(e){document.getElementById('cfobtn').disabled=false;st.textContent='The AI call failed. Try again.';}};}
+// AI vendor drafts (English or Hindi-English)
+async function draftAI(n,name,list,lang){const pre=document.getElementById('m-'+n),st=document.getElementById('cp-'+n);st.textContent='Thinking…';
+ const v=list[0].v;const data={vendor:name,filing:v?v.filing_frequency:'unknown',issues:list.map(i=>({invoice:i.invoice_no,date:i.invoice_date,case:i.status,books_taxable:i.taxable_value,gstr2b_taxable:i.b2?i.b2.taxable_value:null,tax_held:i.impact}))};
+ const prompt=`Write one short, polite email from the accounts payable team of an Indian manufacturer to a supplier, asking them to fix GST filings so our input tax credit appears in GSTR-2B before 14 Oct. Cover every invoice listed, say exactly what to do for each (quarterly/QRMP filers: upload via IFF by 13 Oct; IGST on an intra-state supply: amend via GSTR-1A; value differences: confirm or amend). Keep it under 140 words, warm and practical, no legal threats.
+Language: ${lang==='hi'?'Hindi-English mix written in Latin script (Hinglish), the way small Indian business owners message each other, with GST terms in English':'Simple Indian business English'}.
+Start with a "Subject:" line. Use only this data:
+${J(data)}`;
+ try{const {text}=await sample(prompt,{modelTier:'quick',onText:({text})=>{pre.textContent=text;}});pre.textContent=text;st.textContent=`AI draft (${lang==='hi'?'Hindi-English':'English'}) · A/B variant`;addLog(name,`Live AI vendor draft written (${lang==='hi'?'Hindi-English':'English'})`);}
+ catch(e){st.textContent='The AI call failed. Try again.';}}
+// LLM-as-judge eval
+function renderAIEval(){const el=document.getElementById('aievalbody');if(!el)return;
+ if(!sample){el.innerHTML='<p class="rule">Needs the AI engine (unavailable right now). Method: AI writes explanations for the top issues; a second, independent AI call grades each on a 4-point rubric against the raw data. Same approach as the call-audit eval framework I built at Crio.</p>';return;}
+ if(el.dataset.done)return;el.innerHTML=`<div class="actions"><button class="btn rec" id="evbtn">Run AI eval on top ${Math.min(8,issues.length)} issues</button><span class="meta" id="evst"></span></div><p class="rule">Rubric: (1) cause matches the data, (2) names the ₹ amount, (3) gives one clear next step, (4) IMS action is allowed for the case. Two calls in total.</p>`;
+ document.getElementById('evbtn').onclick=runEval;}
+async function runEval(){const st=document.getElementById('evst');document.getElementById('evbtn').disabled=true;st.textContent='Step 1 of 2: AI writes explanations…';
+ const top=issues.slice(0,8).map(issueBrief);
+ const gen=`You are a GST reconciliation assistant for an Indian accounts-payable executive. For each case below write a plain-English explanation (max 50 words) naming the invoice and ₹ at stake, plus ims_action chosen ONLY from allowed_ims_actions ("N/A" if empty) and one next_step.
+Reply with only a JSON array: [{"id": string, "explanation": string, "ims_action": string, "next_step": string}]
+CASES:
+${J(top)}`;
+ try{const outs=await sample.json(gen,{modelTier:'quick'});st.textContent='Step 2 of 2: a second AI call grades them…';
+  const judge=`You are a strict GST reviewer grading an AI assistant's explanations. For each item, compare the explanation to its source case data and score four checks as true/false: cause_correct (the stated cause matches the case and numbers), amount_named (the ₹ amount at stake appears and is right), clear_next_step (one concrete action), action_allowed (ims_action is in allowed_ims_actions, or "N/A" when that list is empty). Add a reason of max 12 words when any check fails.
+Reply with only a JSON array: [{"id": string, "cause_correct": boolean, "amount_named": boolean, "clear_next_step": boolean, "action_allowed": boolean, "reason": string}]
+SOURCE CASES:
+${J(top)}
+AI OUTPUTS:
+${J(outs)}`;
+  const grades=await sample.json(judge,{modelTier:'default'});
+  const G=Array.isArray(grades)?grades:[];const keys=['cause_correct','amount_named','clear_next_step','action_allowed'];
+  const pass=k=>G.filter(g=>g[k]===true).length;const all=G.filter(g=>keys.every(k=>g[k]===true)).length;
+  // deterministic cross-check of the judge on the one check rules can verify
+  const byId=Object.fromEntries((Array.isArray(outs)?outs:[]).map(o=>[o.id,o]));const ruleOK=top.filter(c=>{const o=byId[c.id];if(!o)return false;return c.allowed_ims_actions.length?c.allowed_ims_actions.includes(o.ims_action):String(o.ims_action).toUpperCase()==='N/A';}).length;
+  const el=document.getElementById('aievalbody');el.dataset.done=1;
+  el.innerHTML=`<div class="big">${G.length?Math.round(all/G.length*100):0}%</div><p style="margin:0;color:var(--muted)">of ${G.length} AI explanations passed all four checks (graded by a second AI call).</p>
+   <div class="scroll"><table><thead><tr><th>Check</th><th class="num">Pass</th></tr></thead><tbody>${keys.map(k=>`<tr><td>${k.replace(/_/g,' ')}</td><td class="num">${pass(k)} / ${G.length}</td></tr>`).join('')}<tr><td>action allowed (verified by guardrails, not the judge)</td><td class="num">${ruleOK} / ${top.length}</td></tr></tbody></table></div>
+   ${G.filter(g=>g.reason).length?`<p class="lbl">Judge's notes</p><ul class="clean">${G.filter(g=>g.reason).map(g=>`<li>${esc(g.id)}: ${esc(g.reason)}</li>`).join('')}</ul>`:''}
+   <details class="raw"><summary>Show both prompts &amp; responses</summary><pre>${esc(gen)}\n\n--- RESPONSE ---\n${esc(J(outs,null,1))}\n\n===== JUDGE =====\n${esc(judge)}\n\n--- RESPONSE ---\n${esc(J(G))}</pre></details>
+   <p class="rule">The judge is itself an AI, so one check (action allowed) is re-verified by guardrails. In production: calibrate the judge against a tax manager's labels before trusting its scores.</p>`;
+  addLog('AI quality eval',`LLM-as-judge: ${all}/${G.length} explanations passed all checks; guardrails confirmed allowed actions on ${ruleOK}/${top.length}`);
+ }catch(e){document.getElementById('evbtn').disabled=false;st.textContent='The AI call failed. Try again.';}}
+
+// AI match suggestions for leftovers the rules could not pair
+let aiSugg=null;
+function leftovers(){const L=issues.filter(i=>i.status==='Missing in 2B'),R=issues.filter(i=>i.status==='Missing in books');const g=new Set(R.map(r=>r.vendor_gstin));return {L:L.filter(l=>g.has(l.vendor_gstin)),R:R.filter(r=>L.some(l=>l.vendor_gstin===r.vendor_gstin))};}
+function renderAIMatch(){const el=document.getElementById('aimatch');if(!el)return;const {L,R}=leftovers();
+ if(!L.length){el.hidden=true;return;}el.hidden=false;
+ if(!sample){el.innerHTML=`<span class="meta">${L.length} unmatched bill(s) share a vendor with unmatched GSTR-2B rows. Live AI could suggest pairs here (sign in to AI).</span>`;return;}
+ if(!aiSugg){el.innerHTML=`<div class="actions"><span class="meta"><b style="color:var(--ink)">${L.length}</b> book entries and <b style="color:var(--ink)">${R.length}</b> GSTR-2B rows from the same vendors are still unpaired.</span><button class="btn rec" id="aimbtn">Ask AI to suggest matches</button><span class="meta" id="aimst"></span></div>`;document.getElementById('aimbtn').onclick=matchAI;return;}
+ el.innerHTML=`<div class="meta"><b style="color:var(--ink)">AI suggested ${aiSugg.length} match(es)</b> · each checked by guardrails (same GSTIN, amount within 0.1%) · approve to apply</div>`+(aiSugg.map((s,k)=>`<div class="sugg"><span><span class="mono">${esc(s.l.invoice_no)}</span> ↔ <span class="mono">${esc(s.r.invoice_no)}</span> · ${esc(s.l.vendor_name)} · ${Math.round(s.conf*100)}% · ${esc(s.reason)}</span><span class="actions">${s.done?`<span class="done">✓ ${s.done}</span>`:`<button class="btn rec" data-sa="${k}">Approve</button><button class="btn" data-sr="${k}">Reject</button>`}</span></div>`).join('')||'<div class="meta">No safe matches suggested.</div>');
+ el.querySelectorAll('[data-sa]').forEach(b=>b.onclick=()=>applySugg(+b.dataset.sa));el.querySelectorAll('[data-sr]').forEach(b=>b.onclick=()=>{const s=aiSugg[+b.dataset.sr];s.done='Rejected';addLog(`${s.l.vendor_name} · ${s.l.invoice_no}`,'AI match suggestion rejected by AP executive');renderAIMatch();});}
+async function matchAI(){const st=document.getElementById('aimst');const b=document.getElementById('aimbtn');b.disabled=true;st.textContent='Thinking…';
+ const {L,R}=leftovers();const groups={};L.concat(R).forEach(x=>{(groups[x.vendor_gstin]=groups[x.vendor_gstin]||{books:[],gstr2b:[]})[x.status==='Missing in 2B'?'books':'gstr2b'].push({id:x.id,invoice_no:x.invoice_no,date:x.invoice_date||(x.b2&&x.b2.invoice_date)||'',taxable:x.taxable_value});});
+ const data=Object.entries(groups).slice(0,40).map(([g,v])=>({gstin:g,...v}));
+ const prompt=`You help reconcile Indian GST purchase data. For each supplier GSTIN below, some invoices in the company's books ("books") were not found in GSTR-2B, and some GSTR-2B rows ("gstr2b") were not found in the books. Suggest pairs that are very likely the SAME invoice written differently (e.g. separators, leading zeros, financial year written as 26-27 vs 2026-27, prefixes). Only pair within the same GSTIN, only when taxable values are equal or within 0.1%, and each id at most once. If unsure, leave it out.
+Reply with only a JSON array: [{"books_id": string, "gstr2b_id": string, "confidence": number 0-1, "reason": string (max 10 words)}]
+DATA:
+${JSON.stringify(data)}`;
+ try{const arr=await sample.json(prompt,{modelTier:'quick'});const byId=Object.fromEntries(issues.map(x=>[x.id,x]));const usedL=new Set(),usedR=new Set();let rejected=0;
+  aiSugg=(Array.isArray(arr)?arr:[]).map(s=>({l:byId[s.books_id],r:byId[s.gstr2b_id],conf:+s.confidence||0,reason:String(s.reason||'')})).filter(s=>{const ok=s.l&&s.r&&s.l.status==='Missing in 2B'&&s.r.status==='Missing in books'&&s.l.vendor_gstin===s.r.vendor_gstin&&Math.abs(s.l.taxable_value-s.r.taxable_value)<=tol(s.l.taxable_value)&&!usedL.has(s.l.id)&&!usedR.has(s.r.id);if(ok){usedL.add(s.l.id);usedR.add(s.r.id);}else rejected++;return ok;});
+  aiSugg.prompt=prompt;addLog('AI match suggestions',`AI suggested ${aiSugg.length+rejected} pair(s); guardrails accepted ${aiSugg.length}, rejected ${rejected}`);renderAIMatch();
+ }catch(e){b.disabled=false;st.textContent=e&&e.code==='not_granted'?'AI access was not allowed.':'The AI call failed. Try again.';}}
+function applySugg(k){const s=aiSugg[k];const l=s.l,r=s.r;
+ l.ref.status='Invoice no. format';l.ref.b2=r.b2;l.ref.aiMatched=true;res.splice(res.indexOf(r.ref),1);
+ Object.assign(l,{status:'Invoice no. format',p:P['Invoice no. format'],b2:r.b2,impact:0,score:0});issues.splice(issues.indexOf(r),1);issues.sort((a,b)=>b.score-a.score);
+ s.done='Approved · now matched';addLog(`${l.vendor_name} · ${l.invoice_no}`,`AI-suggested match approved: ${l.invoice_no} ↔ ${r.invoice_no} (${s.reason})`);
+ renderTiles();renderQueue();renderDetail();renderMails();renderCheck();renderAIMatch();}
+
+// Upload flow
+const up={pr:null,b2:null,key:null};
+function showErr(m){const e=document.getElementById('uperr');e.textContent=m;e.hidden=!m;}
+function readFile(inp,k,label){inp.onchange=()=>{const f=inp.files[0];if(!f)return;up[k+'Name']=f.name;const rd=new FileReader();rd.onload=()=>{try{up[k]=mapFile(rd.result,label);showErr('');}catch(e){up[k]=null;showErr(e.message);}
+  document.getElementById('files').textContent=[up.pr?`Purchase register: ${up.pr.length} rows`:'',up.b2?`GSTR-2B: ${up.b2.length} rows`:'',up.key?`Answer key: ${up.key.length} labels`:''].filter(Boolean).join(' · ');
+  };rd.readAsText(f);};}
+document.getElementById('f-key').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const rows=csvRows(rd.result);const h=rows[0].map(key_);const ii=h.indexOf('id'),ie=h.indexOf('expected'),ig=h.indexOf('pairgroup');
+  if(ii<0||ie<0){showErr('Answer key: needs columns _id and expected.');up.key=null;return;}up.key=rows.slice(1).map(r=>({id:r[ii].trim(),exp:r[ie].trim(),grp:ig>=0?(r[ig]||'').trim():''}));showErr('');
+  document.getElementById('files').textContent=[up.pr?`Purchase register: ${up.pr.length} rows`:'',up.b2?`GSTR-2B: ${up.b2.length} rows`:'',`Answer key: ${up.key.length} labels`].filter(Boolean).join(' · ');};rd.readAsText(f);};
+readFile(document.getElementById('f-pr'),'pr','Purchase register');readFile(document.getElementById('f-2b'),'b2','GSTR-2B');
+document.getElementById('run').onclick=()=>{if(!(up.pr&&up.b2)){if(up.pr||up.b2){showErr('Upload both the purchase register and the GSTR-2B file, then run again.');return;}document.getElementById('reset').click();return;}run(toPR(up.pr),to2B(up.b2),[],false);document.getElementById('src').textContent=`Using your files: ${up.prName} (${up.pr.length} book entries) + ${up.b2Name} (${up.b2.length} GSTR-2B rows)${up.key?' + answer key':''}`;document.getElementById('dsname').textContent=`${up.prName} + ${up.b2Name} (your upload)`;document.getElementById(up.key?'t-check':'t-queue').click();};
+document.getElementById('reset').onclick=()=>{run(parseCSV(DATA.pr),parseCSV(DATA.b2),parseCSV(DATA.vendors),true);document.getElementById('src').textContent='Using built-in sample: Pune AutoComponents, Sep 2026';document.getElementById('dsname').textContent='Pune AutoComponents Pvt Ltd · Sep 2026 (sample data)';showErr('');};
+(function(){const b=document.getElementById('theme'),r=document.documentElement;const cur=()=>r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+ const lab=()=>{b.textContent=cur()==='dark'?'Light mode':'Dark mode';};lab();b.onclick=()=>{r.dataset.theme=cur()==='dark'?'light':'dark';lab();};})();
+const tabs=['queue','check','vendors','dash','log'];
+tabs.forEach(t=>document.getElementById('t-'+t).onclick=()=>{tabs.forEach(x=>{document.getElementById('t-'+x).setAttribute('aria-selected',x===t);document.getElementById('v-'+x).hidden=x!==t;});});
+run(parseCSV(DATA.pr),parseCSV(DATA.b2),parseCSV(DATA.vendors),true);
+</script>
+
+</body></html>
