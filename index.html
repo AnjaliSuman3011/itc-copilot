@@ -205,7 +205,7 @@ function parse(t){try{return JSON.parse(t)}catch(_){const m=t.match(/```(?:json)
  const i=[t.indexOf('{'),t.indexOf('[')].filter(x=>x>=0);const a=i.length?Math.min(...i):-1,b=Math.max(t.lastIndexOf('}'),t.lastIndexOf(']'));
  if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1))}catch(__){}}throw {code:'invalid_json',text:t};}}
 const sample=async(p,o={})=>{const t=await call(typeof p==='string'?p:p.map(x=>x.content).join('\n\n'),false);if(o.onText)o.onText({text:t,delta:t});return {text:t,truncated:false};};
-sample.json=async p=>parse(await call(p,true));
+sample.json=async p=>{let v=parse(await call(p,true));if(v&&!Array.isArray(v)&&typeof v==='object'&&/JSON array/.test(p)){const a=Object.values(v).filter(Array.isArray);if(a.length)v=a[0];}return v;};
 window.claude={use:async n=>{if(n!=='sample')return null;try{const r=await fetch('/api/ai');const j=await r.json();return j.ok?sample:null;}catch(e){return null;}}};})();
 </script>
 <script>
