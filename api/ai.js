@@ -16,6 +16,7 @@ module.exports = async (req, res) => {
 
   const deadline = Date.now() + 50000; // stay inside Vercel's 60s limit
   let last = { status: 502, msg: 'Upstream error' };
+  const errs = [];
 
   const call = async (model, withThinking) => {
     const generationConfig = { temperature: 0.1, ...(withThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}), ...(json ? { responseMimeType: 'application/json' } : {}) };
@@ -39,7 +40,8 @@ module.exports = async (req, res) => {
         }
         const msg = d.error?.message || `HTTP ${r.status}`;
         last = { status: r.status, msg: `${model}: ${msg}` };
-        if (r.status === 400 && /thinking/i.test(msg) && withThinking) { withThinking = false; attempt--; continue; }
+        if (r.status === 400 && withThinking) { withThinking = false; attempt--; continue; } // some models reject thinkingConfig
+        errs.push(`${model}: ${msg.slice(0, 120)}`);
         // "retry in 17h55m15s" or "retry in 4.2s" -> seconds
         const rm = msg.match(/retry in ((?:(\d+)h)?(?:(\d+)m)?([\d.]+)s)/i);
         const retrySec = rm ? (+(rm[2] || 0)) * 3600 + (+(rm[3] || 0)) * 60 + parseFloat(rm[4]) : null;
@@ -54,5 +56,5 @@ module.exports = async (req, res) => {
     }
   }
   const code = last.status === 429 ? 'rate_limited' : 'upstream_error';
-  return res.status(last.status === 429 ? 429 : 502).json({ error: last.msg, code });
+  return res.status(last.status === 429 ? 429 : 502).json({ error: errs.length ? [...new Set(errs)].join(' | ') : last.msg, code });
 };
