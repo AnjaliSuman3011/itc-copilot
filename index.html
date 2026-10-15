@@ -134,7 +134,7 @@ footer{font-size:12px;color:var(--muted)}
 </section>
 
 <section class="tiles" id="tiles"></section>
-<section class="card enginebar"><div class="pad"><div class="meta"><b style="color:var(--ink)">Reconciliation engine</b><span id="engstat">Starting…</span></div><div class="actions" id="engact"></div></div></section>
+<section class="card enginebar"><div class="pad"><div class="meta"><b style="color:var(--ink)">Reconciliation engine</b><span id="engstat">Starting…</span></div><div class="actions" id="engact"></div><p class="meta" style="margin-top:6px;font-size:13px">Live AI runs on a free-tier Gemini key. Under heavy use, some batches may run on the fallback engine; this bar shows exactly how many.</p></div></section>
 
 <nav role="tablist">
   <button role="tab" id="t-queue" aria-selected="true">Work queue</button>
@@ -445,7 +445,7 @@ function applyRes(r){res=r;if(engineMode==='ai')engStats.out=r;
  renderTiles();renderQueue();renderDetail();renderMails();renderLog();renderCheck();renderAIMatch();renderCFO();renderAIEval();renderEngAct();renderDash();
 }
 function renderDash(){const el=document.getElementById('dashlive');if(!el)return;const dedup=res.filter(r=>r.status!=='Duplicate in books'&&r.inBooks!==false);const books=dedup.reduce((a,r)=>a+tax(r),0);
- const conf=dedup.filter(r=>['Matched','Invoice no. format','GSTIN mismatch'].includes(r.status)).reduce((a,r)=>a+tax(r),0);const vend=new Set(issues.filter(i=>i.p.owner==='vendor').map(i=>i.vendor_name)).size;
+ const conf=dedup.filter(r=>['Matched','Invoice no. format','GSTIN mismatch'].includes(r.status)).reduce((a,r)=>a+tax(r),0)+issues.filter(i=>i.status==='Value mismatch').reduce((a,i)=>a+Math.min(i.total_tax,i.b2.total_tax),0);const vend=new Set(issues.filter(i=>i.p.owner==='vendor').map(i=>i.vendor_name)).size;
  const aiRows=res.filter(r=>r.ai).length;
  el.innerHTML=`<div class="kpi"><span>North star: credit confirmed in 2B</span><b>${books?Math.round(conf/books*100):0}% <span class="meta">target 95%</span></b>
  <span>Issues open / decided by AP</span><b>${issues.filter(i=>!i.decision).length} / ${issues.filter(i=>i.decision).length}</b>
