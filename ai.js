@@ -40,11 +40,13 @@ module.exports = async (req, res) => {
         const msg = d.error?.message || `HTTP ${r.status}`;
         last = { status: r.status, msg: `${model}: ${msg}` };
         if (r.status === 400 && /thinking/i.test(msg) && withThinking) { withThinking = false; attempt--; continue; }
-        const daily = /per day|PerDay|free_tier_requests.*limit: *\d+[^0-9]*$/i.test(msg) && !/per minute|PerMinute/i.test(msg);
+        // "retry in 17h55m15s" or "retry in 4.2s" -> seconds
+        const rm = msg.match(/retry in ((?:(\d+)h)?(?:(\d+)m)?([\d.]+)s)/i);
+        const retrySec = rm ? (+(rm[2] || 0)) * 3600 + (+(rm[3] || 0)) * 60 + parseFloat(rm[4]) : null;
+        const daily = /per ?day/i.test(msg) || (retrySec !== null && retrySec > 60);
         if (r.status === 404 || /no longer available|not found|not supported/i.test(msg) || daily) break; // try next model
         if (r.status === 429 || r.status === 503 || r.status === 500) {
-          const m = msg.match(/retry in ([\d.]+)s/i);
-          const wait = Math.min(m ? Math.ceil(parseFloat(m[1]) * 1000) + 500 : 2000 * (attempt + 1), 15000);
+          const wait = Math.min(retrySec !== null ? Math.ceil(retrySec * 1000) + 500 : 2000 * (attempt + 1), 15000);
           if (Date.now() + wait < deadline) { await sleep(wait); continue; }
         }
         break;
