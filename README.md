@@ -4,6 +4,7 @@
 Concept add-on for a GST reconciliation product. Built for the Masters India APM assignment by Anjali Suman. All data is synthetic.
 
 **Live demo:** https://itc-copilot.vercel.app
+**Walkthrough video:** https://www.loom.com/share/86413e4778144ab5a4efb989e0ac0dc5
 
 ## The problem
 Companies can claim GST input tax credit only for invoices that appear in their GSTR-2B. Every month some don't (vendor didn't file, number typed differently, wrong tax head, duplicates), and credit gets stuck between the 14th (2B cut-off) and the 20th (3B due date).
@@ -42,5 +43,5 @@ The live demo runs on a free-tier Gemini key, which has small per-minute and dai
 ## Repo
 `index.html` app · `engine.js` baseline engine and guardrail helpers · `api/ai.js` server function holding the LLM key · `tests/` evals · `test_pack/` labelled data · `docs/prompt_log.md` how AI was used at each step
 
-**Walkthrough video:** https://www.loom.com/share/86413e4778144ab5a4efb989e0ac0dc5
+
 
