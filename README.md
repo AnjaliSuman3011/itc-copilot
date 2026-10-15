@@ -41,3 +41,6 @@ The live demo runs on a free-tier Gemini key, which has small per-minute and dai
 
 ## Repo
 `index.html` app · `engine.js` baseline engine and guardrail helpers · `api/ai.js` server function holding the LLM key · `tests/` evals · `test_pack/` labelled data · `docs/prompt_log.md` how AI was used at each step
+
+**Walkthrough video:** https://www.loom.com/share/86413e4778144ab5a4efb989e0ac0dc5
+
